@@ -1,0 +1,6 @@
+---
+title: "Medical Genetics - Variant Browser"
+output: html_document
+---
+
+![](logo.png "Logo Title Text 1")
