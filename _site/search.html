@@ -11,7 +11,7 @@
 
 
 
-<title>About</title>
+<title></title>
 
 <script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -68,6 +68,7 @@ h6 {
 }
 </style>
 
+<link rel="stylesheet" href="styles.css" type="text/css" />
 
 </head>
 
@@ -154,7 +155,7 @@ $(document).ready(function () {
 <!-- tabsets -->
 <script>
 $(document).ready(function () {
-  window.buildTabsets("TOC");
+  window.buildTabsets("section-TOC");
 });
 </script>
 
@@ -173,7 +174,7 @@ $(document).ready(function () {
         <span class="icon-bar"></span>
         <span class="icon-bar"></span>
       </button>
-      <a class="navbar-brand" href="index.html">My Website</a>
+      <a class="navbar-brand" href="index.html">MedGen Variant Browser</a>
     </div>
     <div id="navbar" class="navbar-collapse collapse">
       <ul class="nav navbar-nav">
@@ -182,6 +183,13 @@ $(document).ready(function () {
     <span class="ion ion-home"></span>
      
     Home
+  </a>
+</li>
+<li>
+  <a href="primer.html">
+    <span class="ion ion-document"></span>
+     
+    Primer Database
   </a>
 </li>
 <li>
@@ -207,7 +215,7 @@ $(document).ready(function () {
       <a href="datasets.html">Data sets</a>
     </li>
     <li>
-      <a href="page_c.htmll">About</a>
+      <a href="about.html">About</a>
     </li>
   </ul>
 </li>
@@ -224,16 +232,23 @@ $(document).ready(function () {
   </div><!--/.container -->
 </div><!--/.navbar -->
 
-<div class="fluid-row" id="header">
+<div class="fluid-row" id="section-header">
 
 
 
-<h1 class="title toc-ignore">About</h1>
 
 </div>
 
 
-<div style="width: 100% ; height: 400px ; text-align: center; box-sizing: border-box; -moz-box-sizing: border-box; -webkit-box-sizing: border-box;" class="muted well">Shiny applications not supported in static R Markdown documents</div>
+<p><br/><br/></p>
+<div id="section-search" class="section level1">
+<h1>Search…</h1>
+<iframe data-deferred-src="appde1c25961ece0f573f571e7ee27d4203/?w=&amp;__subapp__=1" width="100%" height="400" class="shiny-frame shiny-frame-deferred"></iframe>
+<p>This data portal is designed to allow for fast but limited access to the static data sets stored on Whisperwind.</p>
+<div class="footer">
+MedGen variant browser - University of Cambridge - Release version 0.1
+</div>
+</div>
 
 
 

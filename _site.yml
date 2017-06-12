@@ -1,7 +1,7 @@
 name: "MedGen Variant Browser"
 navbar:
   title: MedGen Variant Browser
-  type: default
+  type: inverse
   left:
     - text: "Home"
       icon: ion-home
@@ -9,6 +9,9 @@ navbar:
     - text: "Search"
       icon: ion-erlenmeyer-flask
       href: search.html
+    - text: "Primer Database"
+      icon: ion-document
+      href: primer.html
     - text: "Details"
       icon: fa-gear
       menu:
@@ -17,7 +20,7 @@ navbar:
         - text: "Data sets"
           href: datasets.html
         - text: "About"
-          href: page_c.htmll
+          href: about.html
   right:
     - icon: ion-social-github
       href: https://github.com/Phil9S/markdown_site

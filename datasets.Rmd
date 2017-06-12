@@ -1,0 +1,11 @@
+---
+title: ""
+output: 
+  html_document:
+    css: styles.css
+---
+<br/><br/>
+
+# Datasets
+
+<div class="footer">MedGen variant browser - University of Cambridge - Release version 0.1</div>

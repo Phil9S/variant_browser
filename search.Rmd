@@ -1,9 +1,13 @@
 ---
-title: "About"
+title: ""
+output:
+  html_document:
+    css: styles.css
 runtime: shiny
-output: html_document
 ---
+<br/><br/>
 
+# Search...
 
 ```{r, echo = FALSE}
 library(shiny)
@@ -25,3 +29,7 @@ ui <- fluidPage(
 
 shinyApp(ui = ui, server = server)
 ```
+
+This data portal is designed to allow for fast but limited access to the static data sets stored on Whisperwind.
+
+<div class="footer">MedGen variant browser - University of Cambridge - Release version 0.1</div>

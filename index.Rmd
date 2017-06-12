@@ -1,6 +1,20 @@
 ---
-title: "Medical Genetics - Variant Browser"
-output: html_document
+title: ""
+output:
+  html_document:
+    css: styles.css
 ---
+<br/><br/>
 
-![](logo.png "Logo Title Text 1")
+# MedGen Variant Browser
+
+This data portal is designed to allow for fast but limited access to the static data sets stored on Whisperwind.
+
+The functions consists of several tools and is driven by a [database type] database:
+
+* Variant search
+* Region search
+* Gene search
+* Sample profiles
+
+<div class="footer">MedGen variant browser - University of Cambridge - Release version 0.1</div>
