@@ -6,8 +6,5 @@
   padding: 1rem;
   background-color: #efefef;
   text-align: center;
-}
-
-#title {
-  padding-top: 20%;
+  display: inline-block;
 }

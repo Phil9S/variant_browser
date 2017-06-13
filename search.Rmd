@@ -9,27 +9,25 @@ runtime: shiny
 
 # Search...
 
-```{r, echo = FALSE}
-library(shiny)
-
-server <- function(input, output) {
-  output$distPlot <- renderPlot({
-    hist(rnorm(input$obs), col = 'darkgray', border = 'white')
-  })
-}
-
-ui <- fluidPage(
-  sidebarLayout(
-    sidebarPanel(
-      sliderInput("obs", "Number of observations:", min = 10, max = 500, value = 100)
-    ),
-    mainPanel(plotOutput("distPlot"))
-  )
-)
-
-shinyApp(ui = ui, server = server)
-```
 
 This data portal is designed to allow for fast but limited access to the static data sets stored on Whisperwind.
 
-<div class="footer">MedGen variant browser - University of Cambridge - Release version 0.1</div>
+## Genomic Position
+```{r, echo = FALSE}
+library(shiny)
+shinyApp(
+  
+  ui = fluidPage(
+    textInput(inputId = "pos", label = "pos"),
+    actionButton(inputId = "submit", label = "submit"),
+    textOutput(outputId = "loci_result")
+  ),
+  
+  server = function(input, output){
+    
+    p <- eventReactive(input$submit, {runif(input$pos)})
+    
+    output$loci_result <- renderText({p})
+  }
+)
+```

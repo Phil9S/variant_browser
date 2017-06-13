@@ -8,4 +8,3 @@ output:
 
 # Frequently asked questions
 
-<div class="footer">MedGen variant browser - University of Cambridge - Release version 0.1</div>
