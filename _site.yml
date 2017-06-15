@@ -1,7 +1,7 @@
 name: "MedGen Variant Browser"
 navbar:
   title: MedGen Variant Browser
-  type: yeti
+  type: default
   left:
     - text: "Home"
       icon: ion-home
@@ -26,8 +26,10 @@ navbar:
       href: https://github.com/Phil9S/markdown_site
 output:
   html_document:
-    theme: lumen
+    theme: flatly
     highlight: textmate
     include:
       after_body: footer.html
     css: styles.css
+    
+exclude: ["shinyApp"]
