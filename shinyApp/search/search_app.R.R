@@ -1,15 +1,3 @@
----
-title: ""
-output:
-  html_document:
-    css: styles.css
-runtime: shiny
----
-<br/>
-
-## Genomic Loci Search
-
-```{r, echo = FALSE}
 library(shiny)
 shinyApp(
   ui = fluidPage(
@@ -33,4 +21,3 @@ shinyApp(
   output$data <- renderDataTable({data.frame(x = rep("string",20, y = rep(d(), 20)))})
   }
 )
-```

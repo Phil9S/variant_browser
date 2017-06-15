@@ -1,7 +1,7 @@
 name: "MedGen Variant Browser"
 navbar:
   title: MedGen Variant Browser
-  type: default
+  type: yeti
   left:
     - text: "Home"
       icon: ion-home
