@@ -32,4 +32,4 @@ output:
       after_body: footer.html
     css: styles.css
     
-exclude: ["shinyApp"]
+exclude: ["shinyApp","test_variant_data.txt","test_sample_data.txt"]
