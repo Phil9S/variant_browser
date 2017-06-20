@@ -1,55 +1,84 @@
 library(shiny)
 library(DT)
+library(markdown)
+library(shinythemes)
+library(ggplot2)
 
 ##UI code
-ui = fluidPage(
-    wellPanel( 
-      fluidRow(
-          column(4, textInput(inputId = "pos", label = "Chromosome Position", placeholder = "X:233541 or X:233541-489810")),
-          column(3, offset = 1, textInput(inputId = "gene", label = "Gene Name", placeholder = "BRCA2")),
-          column(3, offset = 1, selectizeInput(inputId = "sample", label = "Sample ID", choices = NULL))
-      ),
-      fluidRow(
-        column(2, offset = 0, actionButton(inputId = "but_pos", label = "Search")),
-        column(2, offset = 3, actionButton(inputId = "but_gene", label = "Search")),
-        column(2, offset = 2, actionButton(inputId = "but_sample", label = "Search"))
-      )
-    ),
-    mainPanel(
-      tabsetPanel(id = "main_panel",
-        tabPanel("Position", value = "pos_panel",
-                 h4(textOutput(outputId = "id_cord"),
-                 br(),
-                 dataTableOutput(outputId = "table_cord"))
-                 ),
-        tabPanel("Gene", value = "gene_panel",
-                 h4(textOutput(outputId = "id_gene"),
-                 h4(""),
-                 dataTableOutput(outputId = "table_gene"))
-                 ),
-        tabPanel("Sample", value = "sample_panel",
-                 h4(textOutput(outputId = "id_sample"),
-                 br(),
-                 fluidRow(column(width = 1, strong("Sex")),
-                          column(width = 3, strong("Phenotype")),
-                          column(width = 5, strong("Age at diagnonsis")),
-                          column(width = 3, strong("Ethnicity (PCA)"))
-                 ),
-                 br(),
-                 fluidRow(column(width = 1, textOutput(outputId = "sample_sex")),
-                          column(width = 3, textOutput(outputId = "sample_pheno")),
-                          column(width = 5, textOutput(outputId = "sample_age")),
-                          column(width = 3, textOutput(outputId = "sample_ethnic"))
-                 ),
-                 br(),
-                 h4(textOutput(outputId = "sampleid_table")),
-                 dataTableOutput(outputId = "table_sample"))
-                 )
+ui = fluidPage(theme = shinytheme("flatly"),
+      navbarPage(title = "MedGen Variant Browser", collapsible = TRUE,
+        tabPanel(title = "Browser", icon = icon("flask"),  
+          wellPanel( 
+            fluidRow(
+                column(4, textInput(inputId = "pos", label = "Chromosome Position", placeholder = "X:233541 or X:233541-489810")),
+                column(3, offset = 1, textInput(inputId = "gene", label = "Gene Name", placeholder = "BRCA2")),
+                column(3, offset = 1, selectizeInput(inputId = "sample", label = "Sample ID", choices = NULL))
+                    ),
+            fluidRow(
+                column(2, offset = 0, actionButton(inputId = "but_pos", label = "Search")),
+                column(2, offset = 3, actionButton(inputId = "but_gene", label = "Search")),
+                column(2, offset = 2, actionButton(inputId = "but_sample", label = "Search"))
+                    )
+                  ),
+          mainPanel(width = 12,
+            tabsetPanel(id = "main_panel",
+              tabPanel("Position", value = "pos_panel",
+                      h4(textOutput(outputId = "id_cord"),
+                      h4(""),
+                      dataTableOutput(outputId = "table_cord"))
+                      ),
+              tabPanel("Gene", value = "gene_panel",
+                      h4(textOutput(outputId = "id_gene"),
+                      h4(""),
+                      dataTableOutput(outputId = "table_gene"))
+                      ),
+              tabPanel("Sample", value = "sample_panel",
+                      h4(textOutput(outputId = "id_sample")),
+                      wellPanel(
+                      fluidRow(column(width = 2, strong("Sex")),
+                                column(width = 2, strong("Phenotype")),
+                                column(width = 2, strong("Age of onset")),
+                                column(width = 3, strong("Ethnicity (PCA)"))
+                              ),
+                      br(),
+                      fluidRow(
+                                column(width = 2, textOutput(outputId = "sample_sex")),
+                                column(width = 2, textOutput(outputId = "sample_pheno")),
+                                column(width = 2, textOutput(outputId = "sample_age")),
+                                column(width = 3, textOutput(outputId = "sample_ethnic"))
+                              )
+                      ),
+                      h4(textOutput(outputId = "sampleid_table")),
+                      fluidRow(
+                                column(width = 12, dataTableOutput(outputId = "table_sample"))
+                              ),
+                      h4("Sample summary metrics"),
+                      fluidRow(
+                                column(width = 4, plotOutput(outputId = "sampleP1"))
+                              ),
+                      br(),
+                      h4("some text to space things", style="align:center;")
+                      )
+            )
+          )
+        ),
+        tabPanel(title = "Other Databases", icon = icon("database")),
+            navbarMenu(title = "More", icon = icon("cogs"),
+              tabPanel(title = "FAQ"),
+              tabPanel(title = "About",
+                  includeMarkdown(path = "/Philip/Bioinformatics Workflows and Reports/markdown_site/shinyApp/www/about.Rmd")) ##path to .Rmd file - about 
+                  # need to figure out the appropriate pathing - absolute path not ideal
+        )
       )
     )
-  )
-###server functions
 
+
+#UI
+#############################################################################################################################################
+#SERVER
+
+###server functions
+### not used in server deployment - connect on app usage
 variant_data <- read.table(file = "../test_variant_data.txt", header = TRUE, sep = "\t")
 sample_data <- read.table(file = "../test_sample_data.txt", header = TRUE, sep = "\t")
 
@@ -110,9 +139,10 @@ server = function(input, output, session){
     })
 ####SAMPLE LOOKUP
   ##Generates list of available samples to look through on search field
-  updateSelectizeInput(session, 'sample', choices = sample_data$Id, server = TRUE)
+  updateSelectizeInput(session, 'sample', choices = sample_data$Id, server = TRUE,options = list(placeholder = 'Please enter a sample ID'))
   ##makes search event reactive and stores sample name as variable
   val_sample <- eventReactive(input$but_sample, {
+    req(input$sample)
     print(input$sample)
   })
   output$sample_sex <- renderText({paste(sample_data$SEX[sample_data$Id == val_sample()])})
@@ -121,8 +151,16 @@ server = function(input, output, session){
   output$sample_ethnic <- renderText({paste(sample_data$ETHNIC[sample_data$Id == val_sample()])})
   data_sample <- reactive({
     ##filter table for input gene symbol
-    datS <- variant_data[variant_data[,s] == 1 | variant_data[,s] == 2 ,]
+    datS <- variant_data[variant_data[,val_sample()] == 1 | variant_data[,val_sample()] == 2 ,]
     datS <- datS[1:15] #remove excess columns
+  })
+  plot1 <- reactive({
+    ggplot(data_sample(),aes(x = CONSEQUENCE,fill = CONSEQUENCE))+
+      geom_bar() +
+      labs(list(title = "Frequency of Consequences", x = "", y = "")) +
+      theme(panel.border = element_blank(), axis.line = element_line(colour="black"), panel.grid.major = element_line(colour = "gray90")) +
+      theme(panel.grid.minor = element_blank(), plot.title = element_text(size = 14,face = "bold",colour = "gray10",margin = margin(0,0,10,0))) +
+      theme(axis.title = element_text(size = 16), plot.margin = margin(10,25,0,0), axis.text.y = element_text(size=12), legend.position="none")
   })
   
 ####DATA OUTPUT SECTION
@@ -141,7 +179,8 @@ output$table_sample <- renderDataTable({datatable(data_sample(),rownames = FALSE
                                                                                 pageLength = 10,
                                                                                 lengthMenu = c(10, 25, 50),
                                                                                 searchHighlight = TRUE
-))})
+                                                                              ))})
+output$sampleP1 <- renderPlot(plot1())
 
 output$id_sample <- renderText({paste(val_sample())}) ##prints header for table with search value
 output$sampleid_table <- renderText({paste("Non-reference variants in ", val_sample())})
