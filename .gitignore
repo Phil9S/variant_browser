@@ -19,3 +19,6 @@
 *.utf8.md
 *.knit.md
 .Rproj.user
+
+#large dataset
+/shinyApp/test_variant_data_large.txt
