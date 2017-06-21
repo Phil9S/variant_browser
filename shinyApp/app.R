@@ -8,7 +8,7 @@ library(ggplot2)
 ui = fluidPage(theme = shinytheme("flatly"),
       navbarPage(title = "MedGen Variant Browser", collapsible = TRUE,
         tabPanel(title = "Browser", icon = icon("flask"),  
-          wellPanel( 
+          wellPanel(style = "padding: 10px;",
             fluidRow(
                 column(4, textInput(inputId = "pos", label = "Chromosome Position", placeholder = "X:233541 or X:233541-489810")),
                 column(3, offset = 1, textInput(inputId = "gene", label = "Gene Name", placeholder = "BRCA2")),
@@ -20,6 +20,20 @@ ui = fluidPage(theme = shinytheme("flatly"),
                 column(2, offset = 2, actionButton(inputId = "but_sample", label = "Search"))
                     )
                   ),
+          fluidRow(
+            column(width = 6,
+              wellPanel(style = "padding: 0px; padding-left: 10px;",
+                h5(tags$em("Variant fitlering options")),
+                fluidRow(
+                  column(width = 4, checkboxInput(inputId = "syn_cord",label = "Include synonymous sites")
+                  ),
+                  column(width = 4, checkboxInput(inputId = "trunc_cord",label = "Show only truncating")
+                  ),
+                  column(width = 4, checkboxInput(inputId = "splice_cord",label = "Show only splicing"))
+                )
+              )
+            )
+          ),
           mainPanel(width = 12,
             tabsetPanel(id = "main_panel",
               tabPanel("Position", value = "pos_panel",
@@ -62,8 +76,12 @@ ui = fluidPage(theme = shinytheme("flatly"),
             )
           )
         ),
+        ###start of summary tab
+        tabPanel(title = "Data summary", icon = icon("table")),
+        ###start of other databases tab
         tabPanel(title = "Other Databases", icon = icon("database")),
-            navbarMenu(title = "More", icon = icon("cogs"),
+        ###dropdown navbar section
+        navbarMenu(title = "More", icon = icon("cogs"),
               tabPanel(title = "FAQ"),
               tabPanel(title = "About",
                   includeMarkdown(path = "/Philip/Bioinformatics Workflows and Reports/markdown_site/shinyApp/www/about.Rmd")) ##path to .Rmd file - about 
@@ -79,8 +97,8 @@ ui = fluidPage(theme = shinytheme("flatly"),
 
 ###server functions
 ### not used in server deployment - connect on app usage
-variant_data <- read.table(file = "../test_variant_data.txt", header = TRUE, sep = "\t")
-sample_data <- read.table(file = "../test_sample_data.txt", header = TRUE, sep = "\t")
+variant_data <- read.table(file = "test_variant_data_large.txt", header = TRUE, sep = "\t")
+sample_data <- read.table(file = "test_sample_data.txt", header = TRUE, sep = "\t")
 
 ##Server code
 server = function(input, output, session){
@@ -108,16 +126,36 @@ server = function(input, output, session){
     ##if only start was provided - look for specific coord - if both start and stop - look up range of variants - start should be less than stop
     if(is.na(stop1)){
       datC <- variant_data[variant_data$Chr == chr & variant_data$Pos == start1,]
-      ##report data back to function
-      datC <- datC[-(16:25)]
+      ##report data back to function2:1-9999999999999999
+      datC <- datC[1:15]
     } else {
       datC <- variant_data[variant_data$Chr == chr 
             & as.numeric(variant_data$Pos) >= as.numeric(start1)
             & as.numeric(variant_data$Pos) <= as.numeric(stop1),]
-      ##report data back to function
-      datC <- datC[1:15]
+      
     }
+    ##report data back to function
+    datC <- datC[1:15]
   })
+  ##check box filtering for cord search - add more if lines if more checkboxes used
+  data2_cord <- reactive({
+     datC2 <- data_cord()
+     if(input$syn_cord == FALSE){
+       datC2 <- datC2[datC2$CONSEQUENCE != "synonymous",]
+     }
+     if(input$trunc_cord == TRUE){
+       datC2 <- datC2[datC2$CONSEQUENCE == "stop gain" 
+                      | datC2$CONSEQUENCE == "frameshift_deletion" 
+                      | datC2$CONSEQUENCE == "frameshift_insertion"
+                      | datC2$CONSEQUENCE == "stop gain",]
+     }
+     if(input$splice_cord == TRUE){
+       datC2 <- datC2[datC2$TYPE == "splicing",]
+     }
+    ##report table to render function
+    datC2
+  })
+  
 ####GENE SEARCH
   ##validates the input as a potential gene symbol - no weird punctuation etc
   val_gene <- eventReactive(input$but_gene, {
@@ -137,6 +175,24 @@ server = function(input, output, session){
     datG <- variant_data[grep(val_gene(),variant_data$GENE),]
     datG <- datG[1:15] #remove excess columns
     })
+  ##functional filtering based on check boxes
+  data2_gene <- reactive({
+    datG2 <- data_gene()
+    if(input$syn_cord == FALSE){
+      datG2 <- datG2[datG2$CONSEQUENCE != "synonymous",]
+    }
+    if(input$trunc_cord == TRUE){
+      datG2 <- datG2[datG2$CONSEQUENCE == "stop gain" 
+                     | datG2$CONSEQUENCE == "frameshift_deletion" 
+                     | datG2$CONSEQUENCE == "frameshift_insertion"
+                     | datG2$CONSEQUENCE == "stop gain",]
+    }
+    if(input$splice_cord == TRUE){
+      datG2 <- datG2[datG2$TYPE == "splicing",]
+    }
+    ##report table to render function
+    datG2
+  })
 ####SAMPLE LOOKUP
   ##Generates list of available samples to look through on search field
   updateSelectizeInput(session, 'sample', choices = sample_data$Id, server = TRUE,options = list(placeholder = 'Please enter a sample ID'))
@@ -154,10 +210,31 @@ server = function(input, output, session){
     datS <- variant_data[variant_data[,val_sample()] == 1 | variant_data[,val_sample()] == 2 ,]
     datS <- datS[1:15] #remove excess columns
   })
+  data2_sample <- reactive({
+    datS2 <- data_sample()
+    if(input$syn_cord == FALSE){
+      datS2 <- datS2[datS2$CONSEQUENCE != "synonymous",]
+    }
+    if(input$trunc_cord == TRUE){
+      datS2 <- datS2[datS2$CONSEQUENCE == "stop gain" 
+                     | datS2$CONSEQUENCE == "frameshift_deletion" 
+                     | datS2$CONSEQUENCE == "frameshift_insertion"
+                     | datS2$CONSEQUENCE == "stop gain",]
+    }
+    if(input$splice_cord == TRUE){
+      datS2 <- datS2[datS2$TYPE == "splicing",]
+    }
+    ##report table to render function
+    datS2
+  })
   plot1 <- reactive({
     ggplot(data_sample(),aes(x = CONSEQUENCE,fill = CONSEQUENCE))+
       geom_bar() +
       labs(list(title = "Frequency of Consequences", x = "", y = "")) +
+      scale_x_discrete(labels=c("frameshift_deletion" = "FS_del", "stop gain" = "stop gain",
+                                "frameshift_insertion" = "FS_ins", "nonsynonymous" = "nonsyn", "nonframeshift_insertion" = "nFS_ins",
+                                "synonymous" = "syn", "stop loss" = "stop loss", "nonframeshift_deletion" = "nFS_del"))+
+      theme(panel.background = element_rect(fill = 'white'), axis.text.x=element_text(size = 10)) +
       theme(panel.border = element_blank(), axis.line = element_line(colour="black"), panel.grid.major = element_line(colour = "gray90")) +
       theme(panel.grid.minor = element_blank(), plot.title = element_text(size = 14,face = "bold",colour = "gray10",margin = margin(0,0,10,0))) +
       theme(axis.title = element_text(size = 16), plot.margin = margin(10,25,0,0), axis.text.y = element_text(size=12), legend.position="none")
@@ -165,17 +242,17 @@ server = function(input, output, session){
   
 ####DATA OUTPUT SECTION
 ##output variant table found and the search term
-output$table_cord <- renderDataTable({datatable(data_cord(),rownames = FALSE, options = list(
+output$table_cord <- renderDataTable({datatable(data2_cord(),rownames = FALSE, options = list(
                                                                                 pageLength = 10,
                                                                                 lengthMenu = c(10, 25, 50),
                                                                                 searchHighlight = TRUE
                                                                               ))})
-output$table_gene <- renderDataTable({datatable(data_gene(),rownames = FALSE, options = list(
+output$table_gene <- renderDataTable({datatable(data2_gene(),rownames = FALSE, options = list(
                                                                                 pageLength = 10,
                                                                                 lengthMenu = c(10, 25, 50),
                                                                                 searchHighlight = TRUE
                                                                               ))})
-output$table_sample <- renderDataTable({datatable(data_sample(),rownames = FALSE, options = list(
+output$table_sample <- renderDataTable({datatable(data2_sample(),rownames = FALSE, options = list(
                                                                                 pageLength = 10,
                                                                                 lengthMenu = c(10, 25, 50),
                                                                                 searchHighlight = TRUE
