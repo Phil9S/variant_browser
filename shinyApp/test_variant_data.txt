@@ -36,12 +36,12 @@ var34	6	666667	G	T	9334	MNO	exonic	G653F	nonsynonymous	0	0.00047	0.33333	0.1	21	
 var35	7	777777	T	A	7490	PQR	exonic	T923G	nonsynonymous	0.01646	0.0009	0.4	0	30	0	1	1	0	0	1	0	1	0	0
 var36	7	777778	A	C	1956	STV	exonic	G281T	nonsynonymous	0	0	0.1	0	36	0	0	0	0	1	0	0	0	0	0
 var37	8	888888	A	T	8168	ABC	splicing	T376G	nonsynonymous	0.01005	0	0.44444	0.1	32	1	-9	0	1	0	0	0	1	0	1
-var38	8	888889	GTA	C	3358	DEF	splicing	A221K	frameshift_deletetion	0.00024	0.0018	0.4	0	38	0	1	0	1	1	0	0	0	1	0
+var38	8	888889	GTA	C	3358	DEF	splicing	A221K	frameshift_deletion	0.00024	0.0018	0.4	0	38	0	1	0	1	1	0	0	0	1	0
 var39	9	999998	C	A	720	GHI	exonic	F201T	nonsynonymous	0	0.00089	0.3	0	21	0	0	0	0	0	0	1	1	0	1
 var40	9	999999	A	G	2898	JKL	exonic	G182F	nonsynonymous	0.01753	0.00042	0.2	0	13	0	0	1	1	0	0	0	0	0	0
 var41	10	101010	T	G	2907	MNO	exonic	T737G	nonsynonymous	0.01239	0.00144	0.3	0	4	0	0	0	0	0	1	1	1	0	0
 var42	10	101010	C	T	1345	PQR	exonic	G18Y	nonsynonymous	0.00228	0	0.6	0.1	10	1	1	0	1	2	-9	1	0	0	0
-var43	11	111111	GC	G	5860	STV	exonic	K258R	frameshift_deletetion	0.00559	0.00119	0.2	0	4	0	0	1	0	0	0	0	0	1	0
+var43	11	111111	GC	G	5860	STV	exonic	K258R	frameshift_deletion	0.00559	0.00119	0.2	0	4	0	0	1	0	0	0	0	0	1	0
 var44	11	111112	G	A	5919	ABC	exonic	T527B	nonsynonymous	0.01553	0.00147	0.4	0	36	1	0	1	1	0	1	0	0	0	0
 var45	12	121212	C	A	7145	DEF	exonic	F803N	nonsynonymous	0.01632	0.00077	0.4	0	17	1	0	1	1	0	0	0	1	0	0
 var46	12	121213	A	G	13956	GHI	exonic	G508V	nonsynonymous	0.01109	0.00158	0.2	0	25	0	0	1	0	0	0	0	0	1	0

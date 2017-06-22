@@ -20,9 +20,11 @@ ui = fluidPage(theme = shinytheme("flatly"),
                 column(2, offset = 2, actionButton(inputId = "but_sample", label = "Search"))
                     )
                   ),
+          hr(),
+          h4("Data options"),
           fluidRow(
-            column(width = 6,
-              wellPanel(style = "padding: 0px; padding-left: 10px;",
+            column(width = 12,
+              wellPanel(style = "padding: 10px;",
                 h5(tags$em("Variant fitlering options")),
                 fluidRow(
                   column(width = 4, checkboxInput(inputId = "syn_cord",label = "Include synonymous sites")
@@ -34,17 +36,18 @@ ui = fluidPage(theme = shinytheme("flatly"),
               )
             )
           ),
+          tags$hr(),
           mainPanel(width = 12,
             tabsetPanel(id = "main_panel",
               tabPanel("Position", value = "pos_panel",
-                      h4(textOutput(outputId = "id_cord"),
+                      h4(textOutput(outputId = "id_cord")),
                       h4(""),
-                      dataTableOutput(outputId = "table_cord"))
+                      dataTableOutput(outputId = "table_cord")
                       ),
               tabPanel("Gene", value = "gene_panel",
-                      h4(textOutput(outputId = "id_gene"),
+                      #h4(textOutput(outputId = "id_gene")),
                       h4(""),
-                      dataTableOutput(outputId = "table_gene"))
+                      dataTableOutput(outputId = "table_gene")
                       ),
               tabPanel("Sample", value = "sample_panel",
                       h4(textOutput(outputId = "id_sample")),
@@ -65,24 +68,31 @@ ui = fluidPage(theme = shinytheme("flatly"),
                       h4(textOutput(outputId = "sampleid_table")),
                       fluidRow(
                                 column(width = 12, dataTableOutput(outputId = "table_sample"))
+                                
                               ),
+                      h4(""),
                       h4("Sample summary metrics"),
                       fluidRow(
                                 column(width = 4, plotOutput(outputId = "sampleP1"))
-                              ),
-                      br(),
-                      h4("some text to space things", style="align:center;")
+                              )
                       )
-            )
-          )
-        ),
+                  )
+              ),
+              fluidRow(
+                column(width = 2, offset = 10, downloadButton(outputId = "data_dl",label = "Save table as csv", icon = icon("floppy-o")))
+                ),
+              h4(""),
+              h6(em(paste("MedGenVB - Department of Medical Genetics - Last update: ",Sys.Date(),sep = "")), style="text-align:center;")
+            ),
+
         ###start of summary tab
         tabPanel(title = "Data summary", icon = icon("table")),
         ###start of other databases tab
         tabPanel(title = "Other Databases", icon = icon("database")),
         ###dropdown navbar section
         navbarMenu(title = "More", icon = icon("cogs"),
-              tabPanel(title = "FAQ"),
+              tabPanel(title = "FAQ",
+                includeMarkdown(path = "/Philip/Bioinformatics Workflows and Reports/markdown_site/shinyApp/www/faq.Rmd")),
               tabPanel(title = "About",
                   includeMarkdown(path = "/Philip/Bioinformatics Workflows and Reports/markdown_site/shinyApp/www/about.Rmd")) ##path to .Rmd file - about 
                   # need to figure out the appropriate pathing - absolute path not ideal
@@ -97,7 +107,7 @@ ui = fluidPage(theme = shinytheme("flatly"),
 
 ###server functions
 ### not used in server deployment - connect on app usage
-variant_data <- read.table(file = "test_variant_data_large.txt", header = TRUE, sep = "\t")
+variant_data <- read.table(file = "test_variant_data.txt", header = TRUE, sep = "\t")
 sample_data <- read.table(file = "test_sample_data.txt", header = TRUE, sep = "\t")
 
 ##Server code
@@ -166,9 +176,9 @@ server = function(input, output, session){
       ## message passed if it looks weird or malformed 
     )
     ##passes input value if no problem
-    output$id_gene <- renderText({paste("Search results for ", val_gene())}) ##prints header for table with search value
     print(input$gene)
   })
+  #output$id_gene <- renderText({paste("Search results for ", val_gene())}) ##prints header for table with search value
   ##function receives value from val_gene
   data_gene <- reactive({
     ##filter table for input gene symbol
@@ -257,11 +267,34 @@ output$table_sample <- renderDataTable({datatable(data2_sample(),rownames = FALS
                                                                                 lengthMenu = c(10, 25, 50),
                                                                                 searchHighlight = TRUE
                                                                               ))})
+###Plot rendering
 output$sampleP1 <- renderPlot(plot1())
 
 output$id_sample <- renderText({paste(val_sample())}) ##prints header for table with search value
 output$sampleid_table <- renderText({paste("Non-reference variants in ", val_sample())})
 
+###file download function
+output$data_dl <- downloadHandler(
+  filename = function(){
+    #paste("MedGenVB_data_",Sys.Date(),".csv", sep = "")
+    if (input$main_panel == "pos_panel"){
+    paste("position_data_",Sys.Date(),".csv", sep = "")
+  } else if (input$main_panel == "gene_panel"){
+    paste("gene_data_",Sys.Date(),".csv", sep = "")
+  } else if (input$main_panel == "sample_panel"){
+    paste("sample_data_",Sys.Date(),".csv", sep = "")
+    }
+  },
+  content = function(file) {
+    if (input$main_panel == "pos_panel"){
+      write.csv(x = data2_cord(), file, quote = FALSE, row.names = FALSE)
+    } else if (input$main_panel == "gene_panel"){
+      write.csv(x = data2_gene(), file, quote = FALSE, row.names = FALSE)
+    } else if (input$main_panel == "sample_panel"){
+      write.csv(x = data2_sample(), file, quote = FALSE, row.names = FALSE)
+    }
+  })
+##end server lines
 }
 
 ##app call
