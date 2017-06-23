@@ -1,5 +1,6 @@
 library(shiny)
 library(DT)
+library(reshape2)
 library(markdown)
 library(shinythemes)
 library(ggplot2)
@@ -39,16 +40,27 @@ ui = fluidPage(theme = shinytheme("flatly"),
           tags$hr(),
           mainPanel(width = 12,
             tabsetPanel(id = "main_panel",
-              tabPanel("Position", value = "pos_panel",
-                      h4(textOutput(outputId = "id_cord")),
-                      h4(""),
-                      dataTableOutput(outputId = "table_cord")
+              tabPanel("Position", value = "pos_panel", 
+                       fluidRow(h4(textOutput(outputId = "id_cord"))),
+                       fluidRow(
+                          column(width = 8,
+                                h4(""),
+                                dataTableOutput(outputId = "table_cord")
+                                )
+                          ###output for genotype table/heatmap once complete
+                          #column(width = 4, 
+                            #     h4(""),
+                           #      dataTableOutput(outputId = "hm_geno")
+                          #)
+                        )
                       ),
+                      h4(""),
               tabPanel("Gene", value = "gene_panel",
                       #h4(textOutput(outputId = "id_gene")),
                       h4(""),
                       dataTableOutput(outputId = "table_gene")
                       ),
+                      h4(""),
               tabPanel("Sample", value = "sample_panel",
                       h4(textOutput(outputId = "id_sample")),
                       wellPanel(
@@ -68,17 +80,18 @@ ui = fluidPage(theme = shinytheme("flatly"),
                       h4(textOutput(outputId = "sampleid_table")),
                       fluidRow(
                                 column(width = 12, dataTableOutput(outputId = "table_sample"))
-                                
                               ),
                       h4(""),
                       h4("Sample summary metrics"),
                       fluidRow(
                                 column(width = 4, plotOutput(outputId = "sampleP1"))
-                              )
+                              ),
+                      h4("")
                       )
                   )
               ),
               fluidRow(
+                
                 column(width = 2, offset = 10, downloadButton(outputId = "data_dl",label = "Save table as csv", icon = icon("floppy-o")))
                 ),
               h4(""),
@@ -137,7 +150,6 @@ server = function(input, output, session){
     if(is.na(stop1)){
       datC <- variant_data[variant_data$Chr == chr & variant_data$Pos == start1,]
       ##report data back to function2:1-9999999999999999
-      datC <- datC[1:15]
     } else {
       datC <- variant_data[variant_data$Chr == chr 
             & as.numeric(variant_data$Pos) >= as.numeric(start1)
@@ -145,7 +157,7 @@ server = function(input, output, session){
       
     }
     ##report data back to function
-    datC <- datC[1:15]
+    datC
   })
   ##check box filtering for cord search - add more if lines if more checkboxes used
   data2_cord <- reactive({
@@ -155,7 +167,7 @@ server = function(input, output, session){
      }
      if(input$trunc_cord == TRUE){
        datC2 <- datC2[datC2$CONSEQUENCE == "stop gain" 
-                      | datC2$CONSEQUENCE == "frameshift_deletion" 
+                      | datC2$CONSEQUENCE == "frameshift_deletion"
                       | datC2$CONSEQUENCE == "frameshift_insertion"
                       | datC2$CONSEQUENCE == "stop gain",]
      }
@@ -163,7 +175,7 @@ server = function(input, output, session){
        datC2 <- datC2[datC2$TYPE == "splicing",]
      }
     ##report table to render function
-    datC2
+     datC2 <- datC2[1:15] 
   })
   
 ####GENE SEARCH
@@ -183,7 +195,7 @@ server = function(input, output, session){
   data_gene <- reactive({
     ##filter table for input gene symbol
     datG <- variant_data[grep(val_gene(),variant_data$GENE),]
-    datG <- datG[1:15] #remove excess columns
+    #remove excess columns
     })
   ##functional filtering based on check boxes
   data2_gene <- reactive({
@@ -201,7 +213,7 @@ server = function(input, output, session){
       datG2 <- datG2[datG2$TYPE == "splicing",]
     }
     ##report table to render function
-    datG2
+    datG2 <- datG2[1:15]
   })
 ####SAMPLE LOOKUP
   ##Generates list of available samples to look through on search field
@@ -218,7 +230,6 @@ server = function(input, output, session){
   data_sample <- reactive({
     ##filter table for input gene symbol
     datS <- variant_data[variant_data[,val_sample()] == 1 | variant_data[,val_sample()] == 2 ,]
-    datS <- datS[1:15] #remove excess columns
   })
   data2_sample <- reactive({
     datS2 <- data_sample()
@@ -235,7 +246,7 @@ server = function(input, output, session){
       datS2 <- datS2[datS2$TYPE == "splicing",]
     }
     ##report table to render function
-    datS2
+    datS2 <- datS2[1:15] #remove excess columns
   })
   plot1 <- reactive({
     ggplot(data_sample(),aes(x = CONSEQUENCE,fill = CONSEQUENCE))+
@@ -267,9 +278,56 @@ output$table_sample <- renderDataTable({datatable(data2_sample(),rownames = FALS
                                                                                 lengthMenu = c(10, 25, 50),
                                                                                 searchHighlight = TRUE
                                                                               ))})
+#output$hm_geno <- renderDataTable({datatable(hm_tab(),rownames = FALSE, options = list(
+                                                                               # pageLength = 10,
+                                                                              #  lengthMenu = c(10, 25, 50),
+                                                                              #  searchHighlight = TRUE,
+                                                                              #  scrollX = TRUE
+                                                                              #))})
+
 ###Plot rendering
 output$sampleP1 <- renderPlot(plot1())
+### data pull for genotype heatmap
+#hm <- reactive({
+#  if(is.null(data_cord())){
+#    return()
+#  } else {
+#  d <- data_cord()
+#  f <- data2_cord()
+#  m <- d[d$Id %in% f$Id,]
+#  m <- m[16:ncol(m)]
+#  }
+#})
+  
+#hm_tab <- reactive({
+#  d <- as.matrix(hm())
+#  i <- as.vector(input$table_cord_rows_current)
+#  h_fil <- d[i,]
+#  h_drop <- h_fil[,apply(h_fil,2,function (x) sum(x == 0) == 10) == FALSE]
+#  h_drop <- h_drop[,apply(h_drop,2,function (x) sum(x == -9) == 10) == FALSE]
+#  h_drop
+  #h_melted <- melt(h_drop)
+  
+  #ggplot(data = h_melted, aes(x=h_melted$Var2, y=h_melted$Var1, fill=factor(value))) + 
+  #  geom_tile(aes(width=0.95, height=0.95), color="gray20", size=0.7) +
+  #  #coord_fixed(ratio = 1) +
+  #  labs(fill='Genotype', x = "Sample", y = "Variant") +
+  #  scale_y_reverse(expand = c(0,0),position="right",breaks=seq(1,10,by = 1)) +
+  #  scale_x_discrete(position = "top",expand = c(0,0)) +
+  #  scale_fill_manual(values=c("-9" = "gray80","0" = "white","1" = "cadetblue2","2" = "cadetblue4"),labels=c("Miss","Ref","Het","Hom")) +
+  #  theme(
+  #    legend.position="bottom",
+  #    axis.text.x=element_blank(),
+  #    axis.ticks.x=element_blank(),
+  #    axis.ticks.y=element_blank(),
+  #    panel.background =element_blank()
+  #  )
+      
+#})
 
+
+
+###Text rendering
 output$id_sample <- renderText({paste(val_sample())}) ##prints header for table with search value
 output$sampleid_table <- renderText({paste("Non-reference variants in ", val_sample())})
 
