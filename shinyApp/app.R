@@ -4,10 +4,19 @@ library(reshape2)
 library(markdown)
 library(shinythemes)
 library(ggplot2)
+library(shinycssloaders)
 
 ##UI code
 ui = fluidPage(theme = shinytheme("flatly"),
       navbarPage(title = "MedGen Variant Browser", collapsible = TRUE,
+        ###Data Summary panel
+        tabPanel(title = "Data summary", icon = icon("table"),
+        h4("Data summary"),
+          wellPanel(style = "padding: 10px;",
+            h5(tags$em("Variant fitlering options"))
+          )
+        ),
+        ##Browser panel
         tabPanel(title = "Browser", icon = icon("flask"),  
           wellPanel(style = "padding: 10px;",
             fluidRow(
@@ -45,7 +54,7 @@ ui = fluidPage(theme = shinytheme("flatly"),
                        fluidRow(
                           column(width = 8,
                                 h4(""),
-                                dataTableOutput(outputId = "table_cord")
+                                withSpinner(dataTableOutput(outputId = "table_cord"),type = 4,color = "#95a5a6")
                                 )
                           ###output for genotype table/heatmap once complete
                           #column(width = 4, 
@@ -58,7 +67,7 @@ ui = fluidPage(theme = shinytheme("flatly"),
               tabPanel("Gene", value = "gene_panel",
                       #h4(textOutput(outputId = "id_gene")),
                       h4(""),
-                      dataTableOutput(outputId = "table_gene")
+                      withSpinner(dataTableOutput(outputId = "table_gene"),type = 4,color = "#95a5a6")
                       ),
                       h4(""),
               tabPanel("Sample", value = "sample_panel",
@@ -77,15 +86,16 @@ ui = fluidPage(theme = shinytheme("flatly"),
                                 column(width = 3, textOutput(outputId = "sample_ethnic"))
                               )
                       ),
-                      h4(textOutput(outputId = "sampleid_table")),
-                      fluidRow(
-                                column(width = 12, dataTableOutput(outputId = "table_sample"))
-                              ),
-                      h4(""),
+                      
                       h4("Sample summary metrics"),
                       fluidRow(
                                 column(width = 4, plotOutput(outputId = "sampleP1"))
                               ),
+                      h4(""),
+                      h4(textOutput(outputId = "sampleid_table")),
+                      fluidRow(
+                        column(width = 12, withSpinner(dataTableOutput(outputId = "table_sample"),type = 4,color = "#95a5a6"))
+                      ),
                       h4("")
                       )
                   )
@@ -95,19 +105,16 @@ ui = fluidPage(theme = shinytheme("flatly"),
                 column(width = 2, offset = 10, downloadButton(outputId = "data_dl",label = "Save table as csv", icon = icon("floppy-o")))
                 ),
               h4(""),
-              h6(em(paste("MedGenVB - Department of Medical Genetics - Last update: ",Sys.Date(),sep = "")), style="text-align:center;")
+              h6(em(paste("MedGenVB - Department of Medical Genetics - ",Sys.Date(),sep = "")), style="text-align:center;")
             ),
-
-        ###start of summary tab
-        tabPanel(title = "Data summary", icon = icon("table")),
         ###start of other databases tab
         tabPanel(title = "Other Databases", icon = icon("database")),
         ###dropdown navbar section
         navbarMenu(title = "More", icon = icon("cogs"),
               tabPanel(title = "FAQ",
-                includeMarkdown(path = "/Philip/Bioinformatics Workflows and Reports/markdown_site/shinyApp/www/faq.Rmd")),
+                includeMarkdown(path = "./www/faq.Rmd")),
               tabPanel(title = "About",
-                  includeMarkdown(path = "/Philip/Bioinformatics Workflows and Reports/markdown_site/shinyApp/www/about.Rmd")) ##path to .Rmd file - about 
+                  includeMarkdown(path = "./www/about.Rmd")) ##path to .Rmd file - about 
                   # need to figure out the appropriate pathing - absolute path not ideal
         )
       )
