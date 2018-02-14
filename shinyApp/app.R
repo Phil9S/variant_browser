@@ -5,6 +5,8 @@ library(markdown)
 library(shinythemes)
 library(ggplot2)
 library(shinycssloaders)
+library(shinyWidgets)
+library(formattable)
 
 ##UI code
 ui = fluidPage(theme = shinytheme("flatly"),
@@ -20,8 +22,8 @@ ui = fluidPage(theme = shinytheme("flatly"),
         tabPanel(title = "Browser", icon = icon("flask"),  
           wellPanel(style = "padding: 10px;",
             fluidRow(
-                column(4, textInput(inputId = "pos", label = "Chromosome Position", placeholder = "X:233541 or X:233541-489810")),
-                column(3, offset = 1, textInput(inputId = "gene", label = "Gene Name", placeholder = "BRCA2")),
+                column(4, textInput(inputId = "pos", label = "Chromosome Position(s)",placeholder = "X:2335 or X:2335-4898")),
+                column(3, offset = 1, selectizeInput(inputId = "gene", label = "Gene(s)", multiple = TRUE, choices = NULL)),
                 column(3, offset = 1, selectizeInput(inputId = "sample", label = "Sample ID", choices = NULL))
                     ),
             fluidRow(
@@ -37,11 +39,31 @@ ui = fluidPage(theme = shinytheme("flatly"),
               wellPanel(style = "padding: 10px;",
                 h5(tags$em("Variant fitlering options")),
                 fluidRow(
-                  column(width = 4, checkboxInput(inputId = "syn_cord",label = "Include synonymous sites")
+                  column(width = 3, materialSwitch(inputId = "syn_cord",label = "Include synonymous",value = FALSE,status = "success",right = TRUE)
                   ),
-                  column(width = 4, checkboxInput(inputId = "trunc_cord",label = "Show only truncating")
+                  column(width = 3, materialSwitch(inputId = "trunc_cord",label = "Truncating only",value = FALSE,status = "success",right = TRUE)
                   ),
-                  column(width = 4, checkboxInput(inputId = "splice_cord",label = "Show only splicing"))
+                  column(width = 3, materialSwitch(inputId = "splice_cord",label = "Splicing only",value = FALSE,status = "success",right = TRUE)
+                  )
+                ),
+                fluidRow(
+                  ###### ACTIONS NOT IMPLEMENTED
+                  column(width = 4, sliderInput(inputId = "Exac_rarity",
+                                                           label = h5(tags$em("ExAC")),
+                                                           min = 0,
+                                                           max = 0.2,
+                                                           value = c(0.05),
+                                                           step = 0.005,
+                                                           ticks = FALSE,
+                                                           width = '90%')),
+                  column(width = 4, sliderInput(inputId = "G1K_rarity",
+                                                           label = h5(tags$em("1K WGS")),
+                                                           min = 0,
+                                                           max = 0.2,
+                                                           value = c(0.05),
+                                                           step = 0.005,
+                                                           ticks = FALSE,
+                                                           width = '90%'))
                 )
               )
             )
@@ -52,15 +74,10 @@ ui = fluidPage(theme = shinytheme("flatly"),
               tabPanel("Position", value = "pos_panel", 
                        fluidRow(h4(textOutput(outputId = "id_cord"))),
                        fluidRow(
-                          column(width = 8,
+                          column(width = 12,
                                 h4(""),
                                 withSpinner(dataTableOutput(outputId = "table_cord"),type = 4,color = "#95a5a6")
                                 )
-                          ###output for genotype table/heatmap once complete
-                          #column(width = 4, 
-                            #     h4(""),
-                           #      dataTableOutput(outputId = "hm_geno")
-                          #)
                         )
                       ),
                       h4(""),
@@ -137,17 +154,17 @@ server = function(input, output, session){
   observeEvent(input$but_gene, {updateTabsetPanel(session, "main_panel", selected = "gene_panel")})
   observeEvent(input$but_sample, {updateTabsetPanel(session, "main_panel", selected = "sample_panel")})
 ####COORDINATE SEARCH
-  ##Evaluate if the coordinate provided looks roughly like a genomic coordinate
+  #Evaluate if the coordinate provided looks roughly like a genomic coordinate
   val_cord <- eventReactive(input$but_pos, {
     validate(
       need(grepl(pattern = "([XY]|[1-9]|1[0-9]|2[0-2]):[0-9]+(-[0-9]+)?", input$pos),
-           message = "Please enter a valid chromosome position") 
+           message = "Please enter a valid chromosome position")
           ## message passed if it looks weird or malformed e.g. contains letters
     )
     ##passes input value if no problem
     output$id_cord <- renderText({paste("Search results for ", input$pos)}) ##prints header for table with search value
-    print(input$pos)
-  })    
+    return(input$pos)
+  })
   data_cord <- reactive({
     ##split the inputpos into its chr start and stop components
     chr <- strsplit(val_cord(), ":",fixed = TRUE)[[1]][1]
@@ -164,7 +181,7 @@ server = function(input, output, session){
       
     }
     ##report data back to function
-    datC
+    return(datC)
   })
   ##check box filtering for cord search - add more if lines if more checkboxes used
   data2_cord <- reactive({
@@ -182,11 +199,13 @@ server = function(input, output, session){
        datC2 <- datC2[datC2$TYPE == "splicing",]
      }
     ##report table to render function
-     datC2 <- datC2[1:15] 
+     datC2 <- datC2[1:15]
+     return(datC2)
   })
   
 ####GENE SEARCH
   ##validates the input as a potential gene symbol - no weird punctuation etc
+  updateSelectizeInput(session, 'gene', choices = variant_data$GENE, server = TRUE,options = list(placeholder = 'Gene Symbol'))
   val_gene <- eventReactive(input$but_gene, {
     
     validate(
@@ -195,7 +214,7 @@ server = function(input, output, session){
       ## message passed if it looks weird or malformed 
     )
     ##passes input value if no problem
-    print(input$gene)
+    return(input$gene)
   })
   #output$id_gene <- renderText({paste("Search results for ", val_gene())}) ##prints header for table with search value
   ##function receives value from val_gene
@@ -224,7 +243,7 @@ server = function(input, output, session){
   })
 ####SAMPLE LOOKUP
   ##Generates list of available samples to look through on search field
-  updateSelectizeInput(session, 'sample', choices = sample_data$Id, server = TRUE,options = list(placeholder = 'Please enter a sample ID'))
+  updateSelectizeInput(session, 'sample', choices = sample_data$Id, server = TRUE,options = list(placeholder = 'Sample ID'))
   ##makes search event reactive and stores sample name as variable
   val_sample <- eventReactive(input$but_sample, {
     req(input$sample)
@@ -270,11 +289,15 @@ server = function(input, output, session){
   
 ####DATA OUTPUT SECTION
 ##output variant table found and the search term
-output$table_cord <- renderDataTable({datatable(data2_cord(),rownames = FALSE, options = list(
-                                                                                pageLength = 10,
-                                                                                lengthMenu = c(10, 25, 50),
-                                                                                searchHighlight = TRUE
-                                                                              ))})
+output$table_cord <- renderDataTable({as.datatable(formattable(data2_cord(), list(CADD = color_tile("white", "orange"))),
+                                                rownames = FALSE, options = list(pageLength = 10,
+                                                                                 lengthMenu = c(10, 25, 50),
+                                                                                 searchHighlight = TRUE))})
+# output$table_cord <- renderDataTable({datatable(  data2_cord(),rownames = FALSE, options = list(
+#                                                                                 pageLength = 10,
+#                                                                                 lengthMenu = c(10, 25, 50),
+#                                                                                 searchHighlight = TRUE
+#                                                                               ))})
 output$table_gene <- renderDataTable({datatable(data2_gene(),rownames = FALSE, options = list(
                                                                                 pageLength = 10,
                                                                                 lengthMenu = c(10, 25, 50),
@@ -285,54 +308,9 @@ output$table_sample <- renderDataTable({datatable(data2_sample(),rownames = FALS
                                                                                 lengthMenu = c(10, 25, 50),
                                                                                 searchHighlight = TRUE
                                                                               ))})
-#output$hm_geno <- renderDataTable({datatable(hm_tab(),rownames = FALSE, options = list(
-                                                                               # pageLength = 10,
-                                                                              #  lengthMenu = c(10, 25, 50),
-                                                                              #  searchHighlight = TRUE,
-                                                                              #  scrollX = TRUE
-                                                                              #))})
 
 ###Plot rendering
 output$sampleP1 <- renderPlot(plot1())
-### data pull for genotype heatmap
-#hm <- reactive({
-#  if(is.null(data_cord())){
-#    return()
-#  } else {
-#  d <- data_cord()
-#  f <- data2_cord()
-#  m <- d[d$Id %in% f$Id,]
-#  m <- m[16:ncol(m)]
-#  }
-#})
-  
-#hm_tab <- reactive({
-#  d <- as.matrix(hm())
-#  i <- as.vector(input$table_cord_rows_current)
-#  h_fil <- d[i,]
-#  h_drop <- h_fil[,apply(h_fil,2,function (x) sum(x == 0) == 10) == FALSE]
-#  h_drop <- h_drop[,apply(h_drop,2,function (x) sum(x == -9) == 10) == FALSE]
-#  h_drop
-  #h_melted <- melt(h_drop)
-  
-  #ggplot(data = h_melted, aes(x=h_melted$Var2, y=h_melted$Var1, fill=factor(value))) + 
-  #  geom_tile(aes(width=0.95, height=0.95), color="gray20", size=0.7) +
-  #  #coord_fixed(ratio = 1) +
-  #  labs(fill='Genotype', x = "Sample", y = "Variant") +
-  #  scale_y_reverse(expand = c(0,0),position="right",breaks=seq(1,10,by = 1)) +
-  #  scale_x_discrete(position = "top",expand = c(0,0)) +
-  #  scale_fill_manual(values=c("-9" = "gray80","0" = "white","1" = "cadetblue2","2" = "cadetblue4"),labels=c("Miss","Ref","Het","Hom")) +
-  #  theme(
-  #    legend.position="bottom",
-  #    axis.text.x=element_blank(),
-  #    axis.ticks.x=element_blank(),
-  #    axis.ticks.y=element_blank(),
-  #    panel.background =element_blank()
-  #  )
-      
-#})
-
-
 
 ###Text rendering
 output$id_sample <- renderText({paste(val_sample())}) ##prints header for table with search value
