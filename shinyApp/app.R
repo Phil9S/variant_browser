@@ -7,10 +7,18 @@ library(ggplot2)
 library(shinycssloaders)
 library(shinyWidgets)
 library(formattable)
+library(shinyjs)
+
+
+### Advanced tips https://github.com/daattali/advanced-shiny#readme
+### Links in table https://github.com/rstudio/DT/issues/58
 
 ##UI code
 ui = fluidPage(theme = shinytheme("flatly"),
-      navbarPage(title = "MedGen Variant Browser", collapsible = TRUE,
+      useShinyjs(),
+      tags$style(type="text/css", "body {padding-top: 80px;}"),
+      tags$style(type='text/css', "#but_pos  { vertical-align: middle; }"),
+      navbarPage(title = "MedGen Variant Browser", collapsible = TRUE,position = "fixed-top",
         ###Data Summary panel
         tabPanel(title = "Data summary", icon = icon("table"),
         h4("Data summary"),
@@ -19,94 +27,184 @@ ui = fluidPage(theme = shinytheme("flatly"),
           )
         ),
         ##Browser panel
-        tabPanel(title = "Browser", icon = icon("flask"),  
-          wellPanel(style = "padding: 10px;",
-            fluidRow(
-                column(4, textInput(inputId = "pos", label = "Chromosome Position(s)",placeholder = "X:2335 or X:2335-4898")),
-                column(3, offset = 1, selectizeInput(inputId = "gene", label = "Gene(s)", multiple = TRUE, choices = NULL)),
-                column(3, offset = 1, selectizeInput(inputId = "sample", label = "Sample ID", choices = NULL))
-                    ),
-            fluidRow(
-                column(2, offset = 0, actionButton(inputId = "but_pos", label = "Search")),
-                column(2, offset = 3, actionButton(inputId = "but_gene", label = "Search")),
-                column(2, offset = 2, actionButton(inputId = "but_sample", label = "Search"))
+        tabPanel(title = "Browser", icon = icon("flask"),
+         h4(tags$b("Variant Browser")),
+         fluidRow(
+           column(11,selectInput(inputId = "cohort",label = "Cohort",choices = c(cohorts,"None"),selected = "None"))
+         ),
+         div(id = "animation",
+         conditionalPanel("input.cohort != 'None'",
+          column(width = 2,
+            h4("Data options"),
+              tabsetPanel(id = "data_select",type = "pills",
+                  tabPanel(title = "Position",value = "data_select_pos",
+                   wellPanel(
+                    fluidRow(
+                      column(12, textInput(inputId = "pos", label = "Position(s)",placeholder = "X:2335 or X:2335-4898"))
+                      #column(4, actionButton(inputId = "but_pos", label = "Search"))
+                      ),
+                    h5(tags$em("Fitlering options")),
+                    fluidRow(
+                      column(12,materialSwitch(inputId = "syn_cord_pos",label = "Include synonymous",value = FALSE,status = "success",right = TRUE)
+                        )),
+                    fluidRow(
+                      column(12,materialSwitch(inputId = "trunc_cord_pos",label = "Truncating only",value = FALSE,status = "success",right = TRUE)
+                        )),
+                    fluidRow(
+                      column(12,materialSwitch(inputId = "splice_cord_pos",label = "Splicing only",value = FALSE,status = "success",right = TRUE)
+                        )),
+                  ###### ACTIONS NOT IMPLEMENTED
+                    fluidRow(
+                      column(12,sliderInput(inputId = "Exac_rarity_pos",
+                                      label = h6(tags$em("ExAC")),
+                                                           min = 0,
+                                                           max = 0.2,
+                                                           value = c(0.05),
+                                                           step = 0.005,
+                                                           ticks = FALSE,
+                                                           width = '100%'))),
+                    fluidRow(
+                      column(12,sliderInput(inputId = "G1K_rarity_pos",
+                                                           label = h6(tags$em("1K WGS")),
+                                                           min = 0,
+                                                           max = 0.2,
+                                                           value = c(0.05),
+                                                           step = 0.005,
+                                                           ticks = FALSE,
+                                                           width = '100%'))),
+                    fluidRow(
+                      column(width = 12, actionButton(inputId = "but_pos", label = "Search",icon = icon("search"),width = "100%"))
+                      )
                     )
                   ),
-          hr(),
-          h4("Data options"),
-          fluidRow(
-            column(width = 12,
-              wellPanel(style = "padding: 10px;",
-                h5(tags$em("Variant fitlering options")),
-                fluidRow(
-                  column(width = 3, materialSwitch(inputId = "syn_cord",label = "Include synonymous",value = FALSE,status = "success",right = TRUE)
+######################
+                  tabPanel(title = "Gene",value = "data_select_gene",
+                   wellPanel(
+                    fluidRow(
+                      column(12,selectizeInput(inputId = "gene", label = "Gene(s)", multiple = TRUE, choices = NULL))
+                      #column(6, offset = 3, actionButton(inputId = "but_gene", label = "Search"))
+                            ),
+                    h5(tags$em("Fitlering options")),
+                    fluidRow(
+                      column(12,materialSwitch(inputId = "syn_cord_gene",label = "Include synonymous",value = FALSE,status = "success",right = TRUE)
+                             )),
+                    fluidRow(
+                      column(12,materialSwitch(inputId = "trunc_cord_gene",label = "Truncating only",value = FALSE,status = "success",right = TRUE)
+                             )),
+                    fluidRow(
+                      column(12,materialSwitch(inputId = "splice_cord_gene",label = "Splicing only",value = FALSE,status = "success",right = TRUE)
+                             )),
+                                 ###### ACTIONS NOT IMPLEMENTED
+                    fluidRow(
+                      column(12,sliderInput(inputId = "Exac_rarity_gene",
+                                                         label = h6(tags$em("ExAC")),
+                                                         min = 0,
+                                                         max = 0.2,
+                                                         value = c(0.05),
+                                                         step = 0.005,
+                                                         ticks = FALSE,
+                                                         width = '100%'))),
+                    fluidRow(
+                      column(12,sliderInput(inputId = "G1K_rarity_gene",
+                                                         label = h6(tags$em("1K WGS")),
+                                                         min = 0,
+                                                         max = 0.2,
+                                                         value = c(0.05),
+                                                         step = 0.005,
+                                                         ticks = FALSE,
+                                                         width = '100%'))),
+                    fluidRow(
+                      column(width = 12, actionButton(inputId = "but_gene", label = "Search",icon = icon("search"),width = "100%"))
+                      )
+                    )
                   ),
-                  column(width = 3, materialSwitch(inputId = "trunc_cord",label = "Truncating only",value = FALSE,status = "success",right = TRUE)
-                  ),
-                  column(width = 3, materialSwitch(inputId = "splice_cord",label = "Splicing only",value = FALSE,status = "success",right = TRUE)
+############################
+                  tabPanel(title = "Sample",value = "data_select_sample",
+                   wellPanel(
+                    fluidRow(
+                      column(12,selectizeInput(inputId = "sample", label = "Sample", choices = NULL))
+                      #column(6, offset = 2, actionButton(inputId = "but_sample", label = "Search"))
+                                 ),
+                    h5(tags$em("Fitlering options")),
+                    fluidRow(
+                      column(12,materialSwitch(inputId = "syn_cord_sample",label = "Include synonymous",value = FALSE,status = "success",right = TRUE)
+                            )),
+                    fluidRow(
+                      column(12,materialSwitch(inputId = "trunc_cord_sample",label = "Truncating only",value = FALSE,status = "success",right = TRUE)
+                            )),
+                    fluidRow(
+                      column(12,materialSwitch(inputId = "splice_cord_sample",label = "Splicing only",value = FALSE,status = "success",right = TRUE)
+                            )),
+                    ###### ACTIONS NOT IMPLEMENTED
+                    fluidRow(
+                      column(12,sliderInput(inputId = "Exac_rarity_sample",
+                                                         label = h6(tags$em("ExAC")),
+                                                         min = 0,
+                                                         max = 0.2,
+                                                         value = c(0.05),
+                                                         step = 0.005,
+                                                         ticks = FALSE,
+                                                         width = '100%'))),
+                    fluidRow(
+                      column(12,sliderInput(inputId = "G1K_rarity_sample",
+                                                         label = h6(tags$em("1K WGS")),
+                                                         min = 0,
+                                                         max = 0.2,
+                                                         value = c(0.05),
+                                                         step = 0.005,
+                                                         ticks = FALSE,
+                                                         width = '100%'))),
+                    fluidRow(
+                      column(width = 12, actionButton(inputId = "but_sample", label = "Search",icon = icon("search"),width = "100%"))    
+                    )
                   )
-                ),
-                fluidRow(
-                  ###### ACTIONS NOT IMPLEMENTED
-                  column(width = 4, sliderInput(inputId = "Exac_rarity",
-                                                           label = h5(tags$em("ExAC")),
-                                                           min = 0,
-                                                           max = 0.2,
-                                                           value = c(0.05),
-                                                           step = 0.005,
-                                                           ticks = FALSE,
-                                                           width = '90%')),
-                  column(width = 4, sliderInput(inputId = "G1K_rarity",
-                                                           label = h5(tags$em("1K WGS")),
-                                                           min = 0,
-                                                           max = 0.2,
-                                                           value = c(0.05),
-                                                           step = 0.005,
-                                                           ticks = FALSE,
-                                                           width = '90%'))
                 )
               )
             )
+           )
           ),
-          tags$hr(),
-          mainPanel(width = 12,
-            tabsetPanel(id = "main_panel",
-              tabPanel("Position", value = "pos_panel", 
-                       fluidRow(h4(textOutput(outputId = "id_cord"))),
-                       fluidRow(
-                          column(width = 12,
-                                h4(""),
-                                withSpinner(dataTableOutput(outputId = "table_cord"),type = 4,color = "#95a5a6")
-                                )
+          column(width = 10,
+            mainPanel(width = 12,
+              tabsetPanel(id = "main_panel",
+                tabPanel("Position", value = "pos_panel", 
+                    fluidRow(h4(textOutput(outputId = "id_cord"))),
+                    fluidRow(
+                      column(width = 12,
+                      h4(""),
+                      withSpinner(dataTableOutput(outputId = "table_cord"),type = 4,color = "#95a5a6")
+                            )
                         )
-                      ),
-                      h4(""),
-              tabPanel("Gene", value = "gene_panel",
-                      #h4(textOutput(outputId = "id_gene")),
-                      h4(""),
-                      withSpinner(dataTableOutput(outputId = "table_gene"),type = 4,color = "#95a5a6")
-                      ),
-                      h4(""),
-              tabPanel("Sample", value = "sample_panel",
-                      h4(textOutput(outputId = "id_sample")),
-                      wellPanel(
-                      fluidRow(column(width = 2, strong("Sex")),
-                                column(width = 2, strong("Phenotype")),
-                                column(width = 2, strong("Age of onset")),
-                                column(width = 3, strong("Ethnicity (PCA)"))
+                    # fluidRow(
+                    #   column(width = 2, offset = 10, downloadButton(outputId = "data_dl",label = "Save table as csv", icon = icon("floppy-o")))
+                    # )
+                  ),
+                tabPanel("Gene", value = "gene_panel",
+                    #h4(textOutput(outputId = "id_gene")),
+                    h4(""),
+                    withSpinner(dataTableOutput(outputId = "table_gene"),type = 4,color = "#95a5a6")
+                    ),
+                    h4(""),
+                tabPanel("Sample", value = "sample_panel",
+                    h4(textOutput(outputId = "id_sample")),
+                    wellPanel(
+                      fluidRow(
+                        column(width = 2, strong("Sex")),
+                        column(width = 2, strong("Phenotype")),
+                        column(width = 2, strong("Age of onset")),
+                        column(width = 3, strong("Ethnicity (PCA)"))
                               ),
                       br(),
                       fluidRow(
-                                column(width = 2, textOutput(outputId = "sample_sex")),
-                                column(width = 2, textOutput(outputId = "sample_pheno")),
-                                column(width = 2, textOutput(outputId = "sample_age")),
-                                column(width = 3, textOutput(outputId = "sample_ethnic"))
+                        column(width = 2, textOutput(outputId = "sample_sex")),
+                        column(width = 2, textOutput(outputId = "sample_pheno")),
+                        column(width = 2, textOutput(outputId = "sample_age")),
+                        column(width = 3, textOutput(outputId = "sample_ethnic"))
                               )
                       ),
                       
                       h4("Sample summary metrics"),
                       fluidRow(
-                                column(width = 4, plotOutput(outputId = "sampleP1"))
+                        column(width = 4, plotOutput(outputId = "sampleP1"))
                               ),
                       h4(""),
                       h4(textOutput(outputId = "sampleid_table")),
@@ -116,14 +214,12 @@ ui = fluidPage(theme = shinytheme("flatly"),
                       h4("")
                       )
                   )
-              ),
-              fluidRow(
-                
-                column(width = 2, offset = 10, downloadButton(outputId = "data_dl",label = "Save table as csv", icon = icon("floppy-o")))
-                ),
-              h4(""),
-              h6(em(paste("MedGenVB - Department of Medical Genetics - ",Sys.Date(),sep = "")), style="text-align:center;")
-            ),
+              )
+              # fluidRow(
+              #   column(width = 2, offset = 10, downloadButton(outputId = "data_dl",label = "Save table as csv", icon = icon("floppy-o")))
+              #   )
+            )
+        ),
         ###start of other databases tab
         tabPanel(title = "Other Databases", icon = icon("database")),
         ###dropdown navbar section
@@ -146,10 +242,19 @@ ui = fluidPage(theme = shinytheme("flatly"),
 ### not used in server deployment - connect on app usage
 variant_data <- read.table(file = "test_variant_data.txt", header = TRUE, sep = "\t")
 sample_data <- read.table(file = "test_sample_data.txt", header = TRUE, sep = "\t")
+cohorts <- c("RCC","PCC","1958")
 
 ##Server code
 server = function(input, output, session){
-####panel switching 
+
+### cohort selection
+observe({
+    toggle(id = "animation", anim = TRUE, animType = "fade",
+           time = 0.5, condition = input$cohort != "None")
+})
+hide(id = "main_panel")
+
+####panel switching & hiding
   observeEvent(input$but_pos, {updateTabsetPanel(session, "main_panel", selected = "pos_panel")})
   observeEvent(input$but_gene, {updateTabsetPanel(session, "main_panel", selected = "gene_panel")})
   observeEvent(input$but_sample, {updateTabsetPanel(session, "main_panel", selected = "sample_panel")})
@@ -186,16 +291,16 @@ server = function(input, output, session){
   ##check box filtering for cord search - add more if lines if more checkboxes used
   data2_cord <- reactive({
      datC2 <- data_cord()
-     if(input$syn_cord == FALSE){
+     if(input$syn_cord_pos == FALSE){
        datC2 <- datC2[datC2$CONSEQUENCE != "synonymous",]
      }
-     if(input$trunc_cord == TRUE){
+     if(input$trunc_cord_pos == TRUE){
        datC2 <- datC2[datC2$CONSEQUENCE == "stop gain" 
                       | datC2$CONSEQUENCE == "frameshift_deletion"
                       | datC2$CONSEQUENCE == "frameshift_insertion"
                       | datC2$CONSEQUENCE == "stop gain",]
      }
-     if(input$splice_cord == TRUE){
+     if(input$splice_cord_pos == TRUE){
        datC2 <- datC2[datC2$TYPE == "splicing",]
      }
     ##report table to render function
@@ -226,16 +331,16 @@ server = function(input, output, session){
   ##functional filtering based on check boxes
   data2_gene <- reactive({
     datG2 <- data_gene()
-    if(input$syn_cord == FALSE){
+    if(input$syn_cord_gene == FALSE){
       datG2 <- datG2[datG2$CONSEQUENCE != "synonymous",]
     }
-    if(input$trunc_cord == TRUE){
+    if(input$trunc_cord_gene == TRUE){
       datG2 <- datG2[datG2$CONSEQUENCE == "stop gain" 
                      | datG2$CONSEQUENCE == "frameshift_deletion" 
                      | datG2$CONSEQUENCE == "frameshift_insertion"
                      | datG2$CONSEQUENCE == "stop gain",]
     }
-    if(input$splice_cord == TRUE){
+    if(input$splice_cord_gene == TRUE){
       datG2 <- datG2[datG2$TYPE == "splicing",]
     }
     ##report table to render function
@@ -259,16 +364,16 @@ server = function(input, output, session){
   })
   data2_sample <- reactive({
     datS2 <- data_sample()
-    if(input$syn_cord == FALSE){
+    if(input$syn_cord_sample == FALSE){
       datS2 <- datS2[datS2$CONSEQUENCE != "synonymous",]
     }
-    if(input$trunc_cord == TRUE){
+    if(input$trunc_cord_sample == TRUE){
       datS2 <- datS2[datS2$CONSEQUENCE == "stop gain" 
                      | datS2$CONSEQUENCE == "frameshift_deletion" 
                      | datS2$CONSEQUENCE == "frameshift_insertion"
                      | datS2$CONSEQUENCE == "stop gain",]
     }
-    if(input$splice_cord == TRUE){
+    if(input$splice_cord_sample == TRUE){
       datS2 <- datS2[datS2$TYPE == "splicing",]
     }
     ##report table to render function
@@ -289,10 +394,15 @@ server = function(input, output, session){
   
 ####DATA OUTPUT SECTION
 ##output variant table found and the search term
-output$table_cord <- renderDataTable({as.datatable(formattable(data2_cord(), list(CADD = color_tile("white", "orange"))),
-                                                rownames = FALSE, options = list(pageLength = 10,
-                                                                                 lengthMenu = c(10, 25, 50),
-                                                                                 searchHighlight = TRUE))})
+output$table_cord <- renderDataTable({as.datatable(formattable(data2_cord(), list(CADD = color_tile("white", "orange"),
+                                                                                  CONSEQUENCE = formatter("span",
+                                                                                  style = x ~ ifelse(x == "nonsynonymous", 
+                                                                                  style(color = "green", font.weight = "bold"), NA)))
+                                                                ),
+                                                                class = 'row-border compact table-hover',
+                                                                rownames = FALSE, options = list(pageLength = 10,
+                                                                lengthMenu = c(10, 25, 50),
+                                                                searchHighlight = TRUE))})
 # output$table_cord <- renderDataTable({datatable(  data2_cord(),rownames = FALSE, options = list(
 #                                                                                 pageLength = 10,
 #                                                                                 lengthMenu = c(10, 25, 50),
@@ -316,27 +426,28 @@ output$sampleP1 <- renderPlot(plot1())
 output$id_sample <- renderText({paste(val_sample())}) ##prints header for table with search value
 output$sampleid_table <- renderText({paste("Non-reference variants in ", val_sample())})
 
+### review save mechanisms
 ###file download function
-output$data_dl <- downloadHandler(
-  filename = function(){
-    #paste("MedGenVB_data_",Sys.Date(),".csv", sep = "")
-    if (input$main_panel == "pos_panel"){
-    paste("position_data_",Sys.Date(),".csv", sep = "")
-  } else if (input$main_panel == "gene_panel"){
-    paste("gene_data_",Sys.Date(),".csv", sep = "")
-  } else if (input$main_panel == "sample_panel"){
-    paste("sample_data_",Sys.Date(),".csv", sep = "")
-    }
-  },
-  content = function(file) {
-    if (input$main_panel == "pos_panel"){
-      write.csv(x = data2_cord(), file, quote = FALSE, row.names = FALSE)
-    } else if (input$main_panel == "gene_panel"){
-      write.csv(x = data2_gene(), file, quote = FALSE, row.names = FALSE)
-    } else if (input$main_panel == "sample_panel"){
-      write.csv(x = data2_sample(), file, quote = FALSE, row.names = FALSE)
-    }
-  })
+# output$data_dl <- downloadHandler(
+#   filename = function(){
+#     #paste("MedGenVB_data_",Sys.Date(),".csv", sep = "")
+#     if (input$main_panel == "pos_panel"){
+#     paste("position_data_",Sys.Date(),".csv", sep = "")
+#   } else if (input$main_panel == "gene_panel"){
+#     paste("gene_data_",Sys.Date(),".csv", sep = "")
+#   } else if (input$main_panel == "sample_panel"){
+#     paste("sample_data_",Sys.Date(),".csv", sep = "")
+#     }
+#   },
+#   content = function(file) {
+#     if (input$main_panel == "pos_panel"){
+#       write.csv(x = data2_cord(), file, quote = FALSE, row.names = FALSE)
+#     } else if (input$main_panel == "gene_panel"){
+#       write.csv(x = data2_gene(), file, quote = FALSE, row.names = FALSE)
+#     } else if (input$main_panel == "sample_panel"){
+#       write.csv(x = data2_sample(), file, quote = FALSE, row.names = FALSE)
+#     }
+#   })
 ##end server lines
 }
 
