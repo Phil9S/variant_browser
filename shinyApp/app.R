@@ -14,6 +14,7 @@ library(shinyalert)
 library(markdown)
 library(reshape2)
 library(ggplot2)
+library(plotly)
 
 
 ## Advanced tips https://github.com/daattali/advanced-shiny#readme
@@ -21,16 +22,23 @@ library(ggplot2)
 
 #### UI START ####
 
-ui = fluidPage(theme = shinytheme("yeti"),
+ui = fluidPage(theme = shinytheme("flatly"),
       useShinyjs(),
       useShinyalert(),
       tags$style(type="text/css", "body {padding-top: 80px;}"),
       navbarPage(title = "MedGen Variant Browser", collapsible = TRUE,position = "fixed-top",
 #### Data Summary panel ####
         tabPanel(title = "Data summary", icon = icon("table"),
-        h4("Data summary"),
-          wellPanel(style = "padding: 10px;",
-            h5(tags$em("Variant fitlering options"))
+        h4(tags$b("Data summary")),
+        fluidRow(
+          column(1,h5(tags$b("Cohorts"))),
+          column(1,h5(tags$b("Population"))),
+          column(1,h5(tags$b("Sex")))
+        ),
+        fluidRow(
+          column(1,withSpinner(plotlyOutput(outputId = "summary_p1"),type = 4,color = "#95a5a6")),
+          column(1,withSpinner(plotlyOutput(outputId = "summary_p2"),type = 4,color = "#95a5a6")),
+          column(1,withSpinner(plotlyOutput(outputId = "summary_p3"),type = 4,color = "#95a5a6"))
           )
         ),
 #### Data selection panel ####
@@ -430,19 +438,21 @@ hide(id = "main_panel")
 
 #### DATA OUTPUT SECTION ####
   
+## Data summary outputs
+  
 ##Variant table output
 output$table_cord <- renderDataTable({as.datatable(formattable(data_cord(), list(CADD = color_tile("white", "orange"),
                                                                                   CONSEQUENCE = formatter("span",
-                                                                                  style = x ~ ifelse(x == "nonsynonymous", 
-                                                                                  style(color = "green", font.weight = "bold"), NA)))
-                                                                ),
-                                                                class = 'row-border compact table-hover',
-                                                                rownames = FALSE, options = list(pageLength = 20,
+                                                                                  style = x ~ style(color=ifelse(x == "nonsynonymous","orange",
+                                                                                                          ifelse(x == "synonymous","green","red")))),
+                                                                class = 'row-border compact table-hover')),
+                                                                rownames = FALSE,
+                                                                options = list(pageLength = 10,
                                                                 lengthMenu = c(10, 20, 50, 100),
                                                                 searchHighlight = TRUE))})
 
 output$table_gene <- renderDataTable({datatable(val_gene(),rownames = FALSE, options = list(
-                                                                                pageLength = 20,
+                                                                                pageLength = 10,
                                                                                 lengthMenu = c(10, 20, 50, 100),
                                                                                 searchHighlight = TRUE
                                                                               ))})
@@ -454,7 +464,7 @@ output$table_sample <- renderDataTable({datatable(data_sample(),rownames = FALSE
                                                                               ))})
 
 ##### Plot rendering ####
-plot1 <- reactive({
+sample_plot1 <- reactive({
   ggplot(data_sample(),aes(x = CONSEQUENCE,fill = CONSEQUENCE))+
     geom_bar() +
     labs(list(title = "Frequency of Consequences", x = "", y = "")) +
@@ -467,7 +477,43 @@ plot1 <- reactive({
     theme(panel.grid.minor = element_blank(), plot.title = element_text(size = 14,face = "bold",colour = "gray10",margin = margin(0,0,10,0))) +
     theme(axis.title = element_text(size = 16), plot.margin = margin(10,25,0,0), axis.text.y = element_text(size=12), legend.position="none")
 })
-output$sampleP1 <- renderPlot(plot1())
+output$sampleP1 <- renderPlot(sample_plot1())
+
+summary_pheno <- reactive({
+  plot_ly(as.data.frame(table(sample$PHENO)), labels = ~Var1, values = ~Freq,
+             textposition = 'inside',
+             textinfo = 'label',
+             insidetextfont = list(color = '#FFFFFF'),
+             hoverinfo = 'text',
+             text = ~Freq) %>% add_pie(hole = 0.6) %>%
+  layout(xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE)) %>% config(displayModeBar = F)
+})
+output$summary_p1 <- renderPlotly(summary_pheno())
+
+summary_ethnic <- reactive({
+  plot_ly(as.data.frame(table(sample$ETHNIC)), labels = ~Var1, values = ~Freq,
+          textposition = 'inside',
+          textinfo = 'label',
+          insidetextfont = list(color = '#FFFFFF'),
+          hoverinfo = 'text',
+          text = ~Freq) %>% add_pie(hole = 0.6) %>%
+    layout(xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+           yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE)) %>% config(displayModeBar = F)
+})
+output$summary_p2 <- renderPlotly(summary_ethnic())
+
+summary_sex <- reactive({
+  plot_ly(as.data.frame(table(sample$SEX)), labels = ~Var1, values = ~Freq,
+          textposition = 'inside',
+          textinfo = 'label',
+          insidetextfont = list(color = '#FFFFFF'),
+          hoverinfo = 'text',
+          text = ~Freq) %>% add_pie(hole = 0.6) %>%
+    layout(xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+           yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE)) %>% config(displayModeBar = F)
+})
+output$summary_p3 <- renderPlotly(summary_sex())
 
 #### Text rendering ####
 output$id_cord <- renderText({paste("Search results for ", val_cord())})
