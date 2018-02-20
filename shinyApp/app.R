@@ -26,19 +26,17 @@ ui = fluidPage(theme = shinytheme("flatly"),
       useShinyjs(),
       useShinyalert(),
       tags$style(type="text/css", "body {padding-top: 80px;}"),
-      navbarPage(title = "MedGen Variant Browser", collapsible = TRUE,position = "fixed-top",
+      navbarPage(title = "MGDP", collapsible = TRUE,position = "fixed-top",
 #### Data Summary panel ####
         tabPanel(title = "Data summary", icon = icon("table"),
+        h1(tags$b("Medicial Genetics Data Portal"),style='text-align: center;'),
+        h3(tags$em("Data portal (Version 0.1.1)"),style='text-align: center;'),
+        hr(),
         h4(tags$b("Data summary")),
         fluidRow(
-          column(1,h5(tags$b("Cohorts"))),
-          column(1,h5(tags$b("Population"))),
-          column(1,h5(tags$b("Sex")))
-        ),
-        fluidRow(
-          column(1,withSpinner(plotlyOutput(outputId = "summary_p1"),type = 4,color = "#95a5a6")),
-          column(1,withSpinner(plotlyOutput(outputId = "summary_p2"),type = 4,color = "#95a5a6")),
-          column(1,withSpinner(plotlyOutput(outputId = "summary_p3"),type = 4,color = "#95a5a6"))
+          column(4, withSpinner(plotlyOutput(outputId = "summary_p1"),type = 4,color = "#95a5a6"),h5(tags$b("Cohorts")),style='text-align: center;'),
+          column(4, withSpinner(plotlyOutput(outputId = "summary_p2"),type = 4,color = "#95a5a6"),h5(tags$b("Population")),style='text-align: center;'),
+          column(4, withSpinner(plotlyOutput(outputId = "summary_p3"),type = 4,color = "#95a5a6"),h5(tags$b("Sex")),style='text-align: center;')
           )
         ),
 #### Data selection panel ####
@@ -480,7 +478,7 @@ sample_plot1 <- reactive({
 output$sampleP1 <- renderPlot(sample_plot1())
 
 summary_pheno <- reactive({
-  plot_ly(as.data.frame(table(sample$PHENO)), labels = ~Var1, values = ~Freq,
+  plot_ly(as.data.frame(table(sample_data$PHENO)), labels = ~Var1, values = ~Freq,
              textposition = 'inside',
              textinfo = 'label',
              insidetextfont = list(color = '#FFFFFF'),
@@ -492,19 +490,18 @@ summary_pheno <- reactive({
 output$summary_p1 <- renderPlotly(summary_pheno())
 
 summary_ethnic <- reactive({
-  plot_ly(as.data.frame(table(sample$ETHNIC)), labels = ~Var1, values = ~Freq,
+  plot_ly(as.data.frame(table(sample_data$ETHNIC)), labels = ~Var1, values = ~Freq,
           textposition = 'inside',
           textinfo = 'label',
           insidetextfont = list(color = '#FFFFFF'),
           hoverinfo = 'text',
-          text = ~Freq) %>% add_pie(hole = 0.6) %>%
-    layout(xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+          text = ~Freq) %>% add_pie(hole = 0.6) %>% layout(xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
            yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE)) %>% config(displayModeBar = F)
 })
 output$summary_p2 <- renderPlotly(summary_ethnic())
 
 summary_sex <- reactive({
-  plot_ly(as.data.frame(table(sample$SEX)), labels = ~Var1, values = ~Freq,
+  plot_ly(as.data.frame(table(sample_data$SEX)), labels = ~Var1, values = ~Freq,
           textposition = 'inside',
           textinfo = 'label',
           insidetextfont = list(color = '#FFFFFF'),
