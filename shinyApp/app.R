@@ -14,7 +14,6 @@ library(shinyalert)
 library(markdown)
 library(reshape2)
 library(ggplot2)
-library(plotly)
 
 
 ## Advanced tips https://github.com/daattali/advanced-shiny#readme
@@ -29,14 +28,14 @@ ui = fluidPage(theme = shinytheme("flatly"),
       navbarPage(title = "MGDP", collapsible = TRUE,position = "fixed-top",
 #### Data Summary panel ####
         tabPanel(title = "Data summary", icon = icon("table"),
-        h1(tags$b("Medicial Genetics Data Portal"),style='text-align: center;'),
+        h1(tags$b("Medical Genetics Data Portal"),style='text-align: center;'),
         h3(tags$em("Data portal (Version 0.1.1)"),style='text-align: center;'),
         hr(),
         h4(tags$b("Data summary")),
         fluidRow(
-          column(4, withSpinner(plotlyOutput(outputId = "summary_p1"),type = 4,color = "#95a5a6"),h5(tags$b("Cohorts")),style='text-align: center;'),
-          column(4, withSpinner(plotlyOutput(outputId = "summary_p2"),type = 4,color = "#95a5a6"),h5(tags$b("Population")),style='text-align: center;'),
-          column(4, withSpinner(plotlyOutput(outputId = "summary_p3"),type = 4,color = "#95a5a6"),h5(tags$b("Sex")),style='text-align: center;')
+          column(4, tags$div(h5(tags$b("Cohorts")),style='text-align: center;'),style='background-color: coral;'),
+          column(4, tags$div(h5(tags$b("Population")),style='text-align: center;'),style='background-color: coral;'),
+          column(4, tags$div(h5(tags$b("Sex")),style='text-align: center;'),style='background-color: coral;')
           )
         ),
 #### Data selection panel ####
@@ -435,11 +434,10 @@ hide(id = "main_panel")
   })
 
 #### DATA OUTPUT SECTION ####
-  
 ## Data summary outputs
   
 ##Variant table output
-output$table_cord <- renderDataTable({as.datatable(formattable(data_cord(), list(CADD = color_tile("white", "orange"),
+output$table_cord <- renderDataTable({as.datatable(formattable(data_cord(),list(CADD = color_tile("white", "orange"),
                                                                                   CONSEQUENCE = formatter("span",
                                                                                   style = x ~ style(color=ifelse(x == "nonsynonymous","orange",
                                                                                                           ifelse(x == "synonymous","green","red")))),
@@ -477,40 +475,7 @@ sample_plot1 <- reactive({
 })
 output$sampleP1 <- renderPlot(sample_plot1())
 
-summary_pheno <- reactive({
-  plot_ly(as.data.frame(table(sample_data$PHENO)), labels = ~Var1, values = ~Freq,
-             textposition = 'inside',
-             textinfo = 'label',
-             insidetextfont = list(color = '#FFFFFF'),
-             hoverinfo = 'text',
-             text = ~Freq) %>% add_pie(hole = 0.6) %>%
-  layout(xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
-         yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE)) %>% config(displayModeBar = F)
-})
-output$summary_p1 <- renderPlotly(summary_pheno())
 
-summary_ethnic <- reactive({
-  plot_ly(as.data.frame(table(sample_data$ETHNIC)), labels = ~Var1, values = ~Freq,
-          textposition = 'inside',
-          textinfo = 'label',
-          insidetextfont = list(color = '#FFFFFF'),
-          hoverinfo = 'text',
-          text = ~Freq) %>% add_pie(hole = 0.6) %>% layout(xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
-           yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE)) %>% config(displayModeBar = F)
-})
-output$summary_p2 <- renderPlotly(summary_ethnic())
-
-summary_sex <- reactive({
-  plot_ly(as.data.frame(table(sample_data$SEX)), labels = ~Var1, values = ~Freq,
-          textposition = 'inside',
-          textinfo = 'label',
-          insidetextfont = list(color = '#FFFFFF'),
-          hoverinfo = 'text',
-          text = ~Freq) %>% add_pie(hole = 0.6) %>%
-    layout(xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
-           yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE)) %>% config(displayModeBar = F)
-})
-output$summary_p3 <- renderPlotly(summary_sex())
 
 #### Text rendering ####
 output$id_cord <- renderText({paste("Search results for ", val_cord())})
