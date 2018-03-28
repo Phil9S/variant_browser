@@ -19,6 +19,14 @@ library(ggplot2)
 ## Advanced tips https://github.com/daattali/advanced-shiny#readme
 ## Links in table https://github.com/rstudio/DT/issues/58
 
+## external non-session server functions
+
+#variant_data <- read.table(file = "test_variant_data.txt", header = TRUE, sep = "\t")
+load("../../2018-03-12-db_cohort_data.RData")
+variant_data <- cohort_list
+rm(cohort_list)
+sample_data <- read.table(file = "../../2018-03-12-db_sample_data.txt", header = TRUE, sep = "\t")
+
 #### UI START ####
 
 ui = fluidPage(theme = shinytheme("flatly"),
@@ -42,7 +50,7 @@ ui = fluidPage(theme = shinytheme("flatly"),
         tabPanel(title = "Browser", icon = icon("flask"),
          h4(tags$b("Variant Browser")),
          fluidRow(
-           column(2,selectInput(inputId = "cohort",label = "Cohort",choices = c("RCC","PCC","WECARE","None"),selected = "None"))
+           column(2,selectInput(inputId = "cohort",label = "Cohort",choices = c(names(variant_data),"None"),selected = "None"))
          ),
          fluidRow(
            column(2,actionButton(inputId = "reset",label = "",icon = icon("undo"),width = "100%",style='padding:2px;'))
@@ -62,6 +70,9 @@ ui = fluidPage(theme = shinytheme("flatly"),
                     fluidRow(
                       column(12,materialSwitch(inputId = "syn_cord_pos",label = "Include synonymous",value = FALSE,status = "success",right = TRUE)
                         )),
+                    fluidRow(
+                      column(12,materialSwitch(inputId = "intron_cord_pos",label = "Include intronic",value = FALSE,status = "success",right = TRUE)
+                         )),
                     fluidRow(
                       column(12,materialSwitch(inputId = "trunc_cord_pos",label = "Truncating only",value = FALSE,status = "success",right = TRUE)
                         )),
@@ -101,6 +112,9 @@ ui = fluidPage(theme = shinytheme("flatly"),
                       column(12,materialSwitch(inputId = "syn_cord_gene",label = "Include synonymous",value = FALSE,status = "success",right = TRUE)
                              )),
                     fluidRow(
+                      column(12,materialSwitch(inputId = "intron_cord_gene",label = "Include intronic",value = FALSE,status = "success",right = TRUE)
+                             )),
+                    fluidRow(
                       column(12,materialSwitch(inputId = "trunc_cord_gene",label = "Truncating only",value = FALSE,status = "success",right = TRUE)
                              )),
                     fluidRow(
@@ -138,6 +152,9 @@ ui = fluidPage(theme = shinytheme("flatly"),
                     h5(tags$em("Fitlering options")),
                     fluidRow(
                       column(12,materialSwitch(inputId = "syn_cord_sample",label = "Include synonymous",value = FALSE,status = "success",right = TRUE)
+                            )),
+                    fluidRow(
+                      column(12,materialSwitch(inputId = "intron_cord_sample",label = "Include intronic",value = FALSE,status = "success",right = TRUE)
                             )),
                     fluidRow(
                       column(12,materialSwitch(inputId = "trunc_cord_sample",label = "Truncating only",value = FALSE,status = "success",right = TRUE)
@@ -254,10 +271,6 @@ ui = fluidPage(theme = shinytheme("flatly"),
 
 #### SERVER START ####
 
-## external non-session server functions
-variant_data <- read.table(file = "test_variant_data.txt", header = TRUE, sep = "\t")
-sample_data <- read.table(file = "test_sample_data.txt", header = TRUE, sep = "\t")
-cohorts <- c("RCC","PCC","1958")
 
 ## Server code
 server = function(input, output, session){
@@ -277,11 +290,74 @@ observe({
     }
 })
 
+observe({
+  if(input$trunc_cord_pos == TRUE){
+    updateMaterialSwitch(session,"syn_cord_pos",value = FALSE)
+    updateMaterialSwitch(session,"intron_cord_pos",value = FALSE)
+    updateMaterialSwitch(session,"splice_cord_pos",value = FALSE)
+  }
+})
+observe({
+  if(input$syn_cord_pos == TRUE | input$intron_cord_pos == TRUE){
+    updateMaterialSwitch(session,"trunc_cord_pos",value = FALSE)
+    updateMaterialSwitch(session,"splice_cord_pos",value = FALSE)
+  }
+})
+observe({  
+  if(input$splice_cord_pos == TRUE){
+    updateMaterialSwitch(session,"syn_cord_pos",value = FALSE)
+    updateMaterialSwitch(session,"intron_cord_pos",value = FALSE)
+    updateMaterialSwitch(session,"trunc_cord_pos",value = FALSE)
+  }
+})
+
+observe({  
+  if(input$trunc_cord_sample == TRUE){
+    updateMaterialSwitch(session,"syn_cord_sample",value = FALSE)
+    updateMaterialSwitch(session,"intron_cord_sample",value = FALSE)
+    updateMaterialSwitch(session,"splice_cord_sample",value = FALSE)
+  }
+})
+observe({
+  if(input$syn_cord_sample == TRUE | input$intron_cord_sample == TRUE){
+    updateMaterialSwitch(session,"trunc_cord_sample",value = FALSE)
+    updateMaterialSwitch(session,"splice_cord_sample",value = FALSE)
+  }
+})
+observe({
+  if(input$splice_cord_sample == TRUE){
+    updateMaterialSwitch(session,"syn_cord_sample",value = FALSE)
+    updateMaterialSwitch(session,"intron_cord_sample",value = FALSE)
+    updateMaterialSwitch(session,"trunc_cord_sample",value = FALSE)
+  }
+})
+observe({
+  if(input$trunc_cord_gene == TRUE){
+    updateMaterialSwitch(session,"syn_cord_gene",value = FALSE)
+    updateMaterialSwitch(session,"intron_cord_gene",value = FALSE)
+    updateMaterialSwitch(session,"splice_cord_gene",value = FALSE)
+  }
+})
+observe({
+  if(input$syn_cord_gene == TRUE | input$intron_cord_gene == TRUE){
+    updateMaterialSwitch(session,"trunc_cord_gene",value = FALSE)
+    updateMaterialSwitch(session,"splice_cord_gene",value = FALSE)
+  }
+})
+observe({
+  if(input$splice_cord_gene == TRUE){
+    updateMaterialSwitch(session,"syn_cord_gene",value = FALSE)
+    updateMaterialSwitch(session,"intron_cord_gene",value = FALSE)
+    updateMaterialSwitch(session,"trunc_cord_gene",value = FALSE)
+  }
+})
+
+
 observeEvent(input$reset, {
   shinyjs::reset("cohort")
   updateTabsetPanel(session, "main_panel", selected = "blank_panel")
-  
 })
+
 hide(id = "main_panel")
 
 #### Panel switching & hiding ####
@@ -307,37 +383,45 @@ hide(id = "main_panel")
     start1 <- strsplit(strsplit(val_cord(), ":",fixed = TRUE)[[1]][2], "-", fixed = TRUE)[[1]][1]
     stop1 <- strsplit(strsplit(val_cord(), ":",fixed = TRUE)[[1]][2], "-", fixed = TRUE)[[1]][2]
     ##if only start was provided - look for specific coord - if both start and stop - look up range of variants - start should be less than stop
+    datC <- variant_data[[which(names(variant_data) == input$cohort)]]
     if(is.na(stop1)){
-      datC <- variant_data[variant_data$Chr == chr & variant_data$Pos == start1,]
+      datC <- datC[datC$CHROM == chr & datC$POS == start1,]
+      datC <- datC[1:15]
+      return(datC)
       ##report data back to function2:1-9999999999999999
     } else {
-      datC <- variant_data[variant_data$Chr == chr 
-            & as.numeric(variant_data$Pos) >= as.numeric(start1)
-            & as.numeric(variant_data$Pos) <= as.numeric(stop1),]
-      
-    }
+      datC <- datC[datC$CHROM == chr 
+            & as.numeric(datC$POS) >= as.numeric(start1)
+            & as.numeric(datC$POS) <= as.numeric(stop1),]
     
-    datC <- datC[datC$X1000G <= input$X1000G_rarity_pos & datC$EXAC <= input$Exac_rarity_pos,]
     
-    if(input$syn_cord_pos == FALSE){
-      datC <- datC[datC$CONSEQUENCE != "synonymous",]
-    }
-    if(input$trunc_cord_pos == TRUE){
-      datC <- datC[datC$CONSEQUENCE == "stop gain" 
-                     | datC$CONSEQUENCE == "frameshift_deletion"
-                     | datC$CONSEQUENCE == "frameshift_insertion"
-                     | datC$CONSEQUENCE == "stop gain",]
-    }
-    if(input$splice_cord_pos == TRUE){
-      datC <- datC[datC$TYPE == "splicing",]
-    }
+      datC <- datC[datC$X1000g2015aug_all <= input$X1000G_rarity_pos & datC$ExAC_ALL <= input$Exac_rarity_pos,]
+    ########### INTRONIC   
+      if(input$intron_cord_pos == FALSE){
+      datC <- datC[!is.na(datC$ExonicFunc.refGene),]
+      }
+    
+      if(input$syn_cord_pos == FALSE){
+        datC <- datC[which(datC$ExonicFunc.refGene != "synonymous"),]
+      }
+      if(input$trunc_cord_pos == TRUE){
+        datC <- datC[datC$ExonicFunc.refGene == "stopgain" 
+                     | datC$ExonicFunc.refGene == "frameshift deletion"
+                     | datC$ExonicFunc.refGene == "frameshift insertion"
+                     | datC$ExonicFunc.refGene == "stoploss",]
+      }
+      if(input$splice_cord_pos == TRUE){
+        datC <- datC[datC$ExonicFunc.refGene == "splicing",]
+      }
     ##report table to render function
-    datC <- datC[1:15]
+      datC <- datC[1:15]
     ##report data back to function
-    return(datC)
+      return(datC)
+    }
   })
 
 #### GENE SEARCH ####
+  ## Add non-wildcard and rsID search
   ##validates the input as a potential gene symbol - no weird punctuation etc
   label_gene <- eventReactive(input$but_gene, {
     gene_list <- unique(unlist(strsplit(input$gene,",",fixed = TRUE)))
@@ -352,9 +436,9 @@ hide(id = "main_panel")
   val_gene <- eventReactive(input$but_gene, {
       gene_list <- unique(unlist(strsplit(input$gene,",",fixed = TRUE)))
       gene_list <- toupper(gene_list)
-      
+      datG <- variant_data[[which(names(variant_data) == input$cohort)]]
       if(length(gene_list) >= 2){
-        no_list <- gene_list[!gene_list %in% variant_data$GENE]
+        no_list <- gene_list[!gene_list %in% datG$Gene.refGene]
         if(length(no_list) > 0){
           shinyalert(
             title = "Gene symbols missing:",
@@ -370,26 +454,32 @@ hide(id = "main_panel")
             timer = 0,
             imageUrl = "",
             animation = TRUE
-          )}
-        gene_list <- gene_list[gene_list %in% variant_data$GENE]
-        datG <- variant_data[variant_data$GENE %in% gene_list,]
+            )
+            updateTextInput(session,"gene",value = gene_list[!gene_list %in% no_list])
+          }
+        gene_list <- gene_list[gene_list %in% datG$Gene.refGene]
+        datG <- datG[datG$Gene.refGene %in% gene_list,]
       } else {
-        datG <- variant_data[grep(gene_list,variant_data$GENE),]
+        datG <- datG[grep(gene_list,datG$Gene.refGene),]
       }
       
-      datG <- datG[datG$X1000G <= input$X1000G_rarity_gene & datG$EXAC <= input$Exac_rarity_gene,]
+      datG <- datG[datG$X1000g2015aug_all <= input$X1000G_rarity_gene & datG$ExAC_ALL <= input$Exac_rarity_gene,]
+      ########### INTRONIC   
+      if(input$intron_cord_gene == FALSE){
+        datG <- datG[!is.na(datG$ExonicFunc.refGene),]
+      }
       
       if(input$syn_cord_gene == FALSE){
-        datG <- datG[datG$CONSEQUENCE != "synonymous",]
+        datG <- datG[datG$ExonicFunc.refGene != "synonymous",]
       }
       if(input$trunc_cord_gene == TRUE){
-        datG <- datG[datG$CONSEQUENCE == "stop gain"
-                       | datG$CONSEQUENCE == "frameshift_deletion"
-                       | datG$CONSEQUENCE == "frameshift_insertion"
-                       | datG$CONSEQUENCE == "stop gain",]
+        datG <- datG[datG$ExonicFunc.refGene == "stopgain" 
+                     | datG$ExonicFunc.refGene == "frameshift deletion"
+                     | datG$ExonicFunc.refGene == "frameshift insertion"
+                     | datG$ExonicFunc.refGene == "stoploss",]
       }
       if(input$splice_cord_gene == TRUE){
-        datG <- datG[datG$TYPE == "splicing",]
+        datG <- datG[datG$ExonicFunc.refGene == "splicing",]
       }
       ##report table to render function
       datG <- datG[1:15]
@@ -399,35 +489,48 @@ hide(id = "main_panel")
 
 #### SAMPLE LOOKUP ####
   ##Generates list of available samples to look through on search field
-  updateSelectizeInput(session, 'sample', choices = sample_data$Id, server = TRUE,options = list(placeholder = 'Sample ID'))
+  observe({
+    if (input$cohort != "None") {
+    updateSelectizeInput(session, 'sample', 
+                         choices = sample_data$SAMPLE_ID[sample_data$COHORT == input$cohort], 
+                         server = TRUE,
+                         options = list(placeholder = 'Sample ID'))
+    }
+  })
   ##makes search event reactive and stores sample name as variable
   val_sample <- eventReactive(input$but_sample, {
     req(input$sample)
-    return(input$sample)
+    return(sample_data$DATA_ID[sample_data$SAMPLE_ID == input$sample])
   })
-  output$sample_sex <- renderText({paste(sample_data$SEX[sample_data$Id == val_sample()])})
-  output$sample_pheno <- renderText({paste(sample_data$PHENO[sample_data$Id == val_sample()])})
-  output$sample_age <- renderText({paste(sample_data$AGE[sample_data$Id == val_sample()])})
-  output$sample_ethnic <- renderText({paste(sample_data$ETHNIC[sample_data$Id == val_sample()])})
+  output$sample_sex <- renderText({paste(sample_data$SEX[sample_data$DATA_ID == val_sample()])})
+  output$sample_pheno <- renderText({paste(sample_data$PHENO[sample_data$DATA_ID == val_sample()])})
+  output$sample_age <- renderText({paste(sample_data$AGE[sample_data$DATA_ID == val_sample()])})
+  output$sample_ethnic <- renderText({paste(sample_data$ETHNIC[sample_data$DATA_ID == val_sample()])})
   
   data_sample <- eventReactive(input$but_sample, {
-    ##filter table for input gene symbol
-    datS <- variant_data[variant_data[,val_sample()] == 1 | variant_data[,val_sample()] == 2 ,]
+    datS <- variant_data[[which(names(variant_data) == input$cohort)]]
+    ##filter table for input sample
+    datS <- datS[datS[,val_sample()] == 1 | datS[,val_sample()] == 2 ,]
     
-    datS <- datS[datS$X1000G <= input$X1000G_rarity_sample & datS$EXAC <= input$Exac_rarity_sample,]
+    datS <- datS[datS$X1000g2015aug_all <= input$X1000G_rarity_sample & datS$ExAC_ALL <= input$Exac_rarity_sample,]
+    ########### INTRONIC   
+    if(input$intron_cord_sample == FALSE){
+      datS <- datS[!is.na(datS$ExonicFunc.refGene),]
+    }
     
     if(input$syn_cord_sample == FALSE){
-      datS <- datS[datS$CONSEQUENCE != "synonymous",]
+      datS <- datS[datS$ExonicFunc.refGene != "synonymous",]
     }
     if(input$trunc_cord_sample == TRUE){
-      datS <- datS[datS$CONSEQUENCE == "stop gain" 
-                     | datS$CONSEQUENCE == "frameshift_deletion" 
-                     | datS$CONSEQUENCE == "frameshift_insertion"
-                     | datS$CONSEQUENCE == "stop gain",]
+      datS <- datS[datS$ExonicFunc.refGene == "stopgain" 
+                   | datS$ExonicFunc.refGene == "frameshift deletion"
+                   | datS$ExonicFunc.refGene == "frameshift insertion"
+                   | datS$ExonicFunc.refGene == "stoploss",]
     }
     if(input$splice_cord_sample == TRUE){
-      datS <- datS[datS$TYPE == "splicing",]
+      datS <- datS[datS$ExonicFunc.refGene == "splicing",]
     }
+  
     datS <- datS[1:15] #remove excess columns
     ##report table to render function
     return(datS)
@@ -461,12 +564,12 @@ output$table_sample <- renderDataTable({datatable(data_sample(),rownames = FALSE
 
 ##### Plot rendering ####
 sample_plot1 <- reactive({
-  ggplot(data_sample(),aes(x = CONSEQUENCE,fill = CONSEQUENCE))+
+  ggplot(data_sample(),aes(x = ExonicFunc.refGene,fill = ExonicFunc.refGene))+
     geom_bar() +
     labs(list(title = "Frequency of Consequences", x = "", y = "")) +
-    scale_x_discrete(labels=c("frameshift_deletion" = "FS_del", "stop gain" = "stop gain",
-                              "frameshift_insertion" = "FS_ins", "nonsynonymous" = "nonsyn", "nonframeshift_insertion" = "nFS_ins",
-                              "synonymous" = "syn", "stop loss" = "stop loss", "nonframeshift_deletion" = "nFS_del"),expand = c(0,0))+
+    scale_x_discrete(labels=c("frameshift deletion" = "FS_del", "stopgain" = "stop gain",
+                              "frameshift insertion" = "FS_ins", "nonsynonymous" = "nonsyn", "nonframeshift insertion" = "nFSins",
+                              "synonymous" = "syn", "stop loss" = "stop loss", "nonframeshift deletion" = "nFSdel"),expand = c(0,0))+
     scale_y_continuous(expand = c(0,0))+
     theme(panel.background = element_rect(fill = 'white'), axis.text.x=element_text(size = 10)) +
     theme(panel.border = element_blank(), axis.line = element_line(colour="black"), panel.grid.major = element_line(colour = "gray90")) +
@@ -479,7 +582,7 @@ output$sampleP1 <- renderPlot(sample_plot1())
 
 #### Text rendering ####
 output$id_cord <- renderText({paste("Search results for ", val_cord())})
-output$id_sample <- renderText({paste(val_sample())}) ##prints header for table with search value
+output$id_sample <- renderText({paste(sample_data$SAMPLE_ID[sample_data$DATA_ID == val_sample()])}) ##prints header for table with search value
 output$id_gene <- renderText({label_gene()}) 
 output$sampleid_table <- renderText({paste("Non-reference variants in ", val_sample())})
 
