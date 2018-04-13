@@ -5,60 +5,110 @@ library(shinythemes)
 library(shinycssloaders)
 library(shinyWidgets)
 library(shinyjs)
-library(shinyTree)
-library(shinyFiles)
 library(DT)
 library(formattable)
 library(shinyalert)
 
+library(stringr)
 library(markdown)
 library(reshape2)
 library(ggplot2)
 
-
+## Fix intronic filtering
+## shorten nonframeshifting / frameshifting -> nFS / FS
+## Fix all NA issue with AA column by replacing NA with "NA"
+## Fix ".,." characters in annotation columns in data generation
 ## Advanced tips https://github.com/daattali/advanced-shiny#readme
 ## Links in table https://github.com/rstudio/DT/issues/58
 
 ## external non-session server functions
 
 #variant_data <- read.table(file = "test_variant_data.txt", header = TRUE, sep = "\t")
-load("../../2018-03-12-db_cohort_data.RData")
+load("www/2018-04-11-db_cohort_data.RData")
 variant_data <- cohort_list
 rm(cohort_list)
-sample_data <- read.table(file = "../../2018-03-12-db_sample_data.txt", header = TRUE, sep = "\t")
+sample_data <- read.table(file = "www/2018-04-11-db_sample_data.txt", header = TRUE, sep = "\t")
+gene_data <- read.table(file = "www/gene_ids_reference.tsv", header = TRUE, sep = "\t")
+
+column_names <- c("Id","CHR","POS","rsID","REF","ALT","QUAL","Func","GENE","CONSEQ","X1000G_all",
+                  "ExAC_ALL","ExAC_NFE","HET_val","HOM_val","HET_rate","HOM_rate","MISS_rate",
+                  "INT_freq","AggAF_Trunc","AggAF_nsyn","SIFT","POLYP","POLYP_VAR","LRT",
+                  "MUT_TASTER","MUT_ASSESSOR","FATHMM","PROVEAN","CADD","TRANSCRIPT","EXON","DNA",
+                  "AA","CLINVAR","DISEASE","COSMIC_ID","COSMIC_COUNTS")
+
+main_table <- c("CHR","POS","rsID","REF","ALT","GENE","CONSEQ","TRANSCRIPT","EXON","DNA",
+                "AA","X1000G_all","ExAC_ALL","INT_freq","MISS_rate","SIFT","POLYP","CADD")
+
+colfuncCADD <- colorRampPalette(c("chartreuse4","goldenrod2","orangered3"))
+
+RANDOM_GENE <- c("DWORF")
+
+gene_links <- function(gene){
+  refs <- c("http://www.genecards.org/cgi-bin/carddisp.pl?gene=",
+            "http://www.ensembl.org/id/",
+            "https://www.genenames.org/cgi-bin/gene_symbol_report?hgnc_id=",
+            "https://www.ncbi.nlm.nih.gov/gene/",
+            "http://www.uniprot.org/uniprot/",
+            "https://www.omim.org/entry/")
+  L <- vector()  
+  for(i in 1:6){
+    if(is.na(gene_data[gene_data$Gene.name == gene,][,i])){
+      L <- append(L,gene_data[gene_data$Gene.name == gene,][,i]) 
+    } else {
+      val <- gene_data[gene_data$Gene.name == gene,][,i]
+      L <- append(L,paste('<a href=\"',refs[i],val,'\" target="_blank">Info</a>',sep = ""))
+    }
+  }
+  L <- unlist(L)
+  
+  return(L)
+}
 
 #### UI START ####
 
 ui = fluidPage(theme = shinytheme("flatly"),
+### required calls to packages and external files           
       useShinyjs(),
       useShinyalert(),
+      tags$head(
+        tags$link(rel = "stylesheet", type = "text/css", href = "style.css")),
       tags$style(type="text/css", "body {padding-top: 80px;}"),
-      navbarPage(title = "MGDP", collapsible = TRUE,position = "fixed-top",
+      navbarPage(title = "Medical Genetics Data Portal", collapsible = TRUE,position = "fixed-top",
 #### Data Summary panel ####
         tabPanel(title = "Data summary", icon = icon("table"),
-        h1(tags$b("Medical Genetics Data Portal"),style='text-align: center;'),
-        h3(tags$em("Data portal (Version 0.1.1)"),style='text-align: center;'),
+        h1(tags$b(""),style='text-align: center;'),
+        h3(tags$em("Version 0.2"),style='text-align: center;'),
         hr(),
-        h4(tags$b("Data summary")),
         fluidRow(
-          column(4, tags$div(h5(tags$b("Cohorts")),style='text-align: center;'),style='background-color: coral;'),
-          column(4, tags$div(h5(tags$b("Population")),style='text-align: center;'),style='background-color: coral;'),
-          column(4, tags$div(h5(tags$b("Sex")),style='text-align: center;'),style='background-color: coral;')
-          )
+          column(4,align="center",h2(tags$b(formatC(length(variant_data),format="d", big.mark=",")))),
+          column(4,align="center",h2(tags$b(formatC(sum(sapply(variant_data,nrow)),format="d", big.mark=",")))),
+          column(4,align="center",h2(tags$b(formatC(length(unique(unlist(sapply(variant_data,function(x) unique(x$Gene.refGene))))),format="d", big.mark=","))))
+          ),
+        fluidRow(
+          column(4,align="center",h2("Cohorts")),
+          column(4,align="center",h2("Variants")),
+          column(4,align="center",h2("Genes"))
+        ),
+        hr(),
+        h4(tags$b("Data summary"))
         ),
 #### Data selection panel ####
-        tabPanel(title = "Browser", icon = icon("flask"),
-         h4(tags$b("Variant Browser")),
-         fluidRow(
-           column(2,selectInput(inputId = "cohort",label = "Cohort",choices = c(names(variant_data),"None"),selected = "None"))
+      tabPanel(title = "Browser", icon = icon("flask"),
+       h4(tags$b("Variant Browser")),
+        column(width = 2,
+           fluidRow(
+            column(12,selectInput(inputId = "cohort",label = "Cohort",choices = c(names(variant_data),"None"),selected = "None"))
+         ),
+          fluidRow(
+           column(12,actionButton(inputId = "reset",label = "",icon = icon("undo"),width = "100%",style='padding:2px;'))
          ),
          fluidRow(
-           column(2,actionButton(inputId = "reset",label = "",icon = icon("undo"),width = "100%",style='padding:2px;'))
+           column(width = 12, actionButton(inputId = "genepanel_but", label = "test",width = "100%")
          ),
          tags$hr(),
          div(id = "animation",
          conditionalPanel("input.cohort != 'None'",
-          column(width = 2,
+          column(width = 12,
             h4("Data options"),
               tabsetPanel(id = "data_select",type = "tabs",
                   tabPanel(title = "Position",value = "data_select_pos",
@@ -183,12 +233,14 @@ ui = fluidPage(theme = shinytheme("flatly"),
                     fluidRow(
                       column(width = 12, actionButton(inputId = "but_sample", label = "Search",icon = icon("search"),width = "100%"))    
                     )
+                   )
                   )
                 )
               )
             )
            )
-          ),
+          )
+        ),
 #### main panel ####         
           column(width = 10,
             mainPanel(width = 12,
@@ -199,7 +251,7 @@ ui = fluidPage(theme = shinytheme("flatly"),
                     fluidRow(
                       column(width = 12,
                       h4(""),
-                      withSpinner(dataTableOutput(outputId = "table_cord"),type = 4,color = "#95a5a6")
+                      div(withSpinner(dataTableOutput(outputId = "table_cord"),type = 4,color = "#95a5a6"),style = "align: center; font-size: 80%; width: 100%")
                             )
                         )
                     # fluidRow(
@@ -209,9 +261,15 @@ ui = fluidPage(theme = shinytheme("flatly"),
                 tabPanel("Gene", value = "gene_panel",
                     h4(textOutput(outputId = "id_gene")),
                     h4(""),
-                    withSpinner(dataTableOutput(outputId = "table_gene"),type = 4,color = "#95a5a6")
+                    div(withSpinner(dataTableOutput(outputId = "table_gene"),type = 4,color = "#95a5a6"),style = "font-size: 80%; width: 80%")
                     ),
                     h4(""),
+                tabPanel("", value = "single_gene_panel",
+                         h4("This is the single gene panel"),
+                         textOutput(outputId = "single_gene_panel_title"),
+                         column(3,dataTableOutput(outputId = "single_gene_panel_conseq"))
+                ),
+                h4(""),
                 tabPanel("Sample", value = "sample_panel",
                     h4(textOutput(outputId = "id_sample")),
                     wellPanel(
@@ -219,14 +277,16 @@ ui = fluidPage(theme = shinytheme("flatly"),
                         column(width = 2, strong("Sex")),
                         column(width = 2, strong("Phenotype")),
                         column(width = 2, strong("Age of onset")),
-                        column(width = 3, strong("Ethnicity (PCA)"))
+                        column(width = 3, strong("Ethnicity (PCA)")),
+                        column(width = 2, strong("Vital status"))
                               ),
                       br(),
                       fluidRow(
                         column(width = 2, textOutput(outputId = "sample_sex")),
                         column(width = 2, textOutput(outputId = "sample_pheno")),
                         column(width = 2, textOutput(outputId = "sample_age")),
-                        column(width = 3, textOutput(outputId = "sample_ethnic"))
+                        column(width = 3, textOutput(outputId = "sample_ethno")),
+                        column(width = 3, textOutput(outputId = "sample_MORT"))
                               )
                       ),
                       
@@ -237,7 +297,7 @@ ui = fluidPage(theme = shinytheme("flatly"),
                       h4(""),
                       h4(textOutput(outputId = "sampleid_table")),
                       fluidRow(
-                        column(width = 12, withSpinner(dataTableOutput(outputId = "table_sample"),type = 4,color = "#95a5a6"))
+                        div(withSpinner(dataTableOutput(outputId = "table_sample"),type = 4,color = "#95a5a6"),style = "font-size: 80%; width: 100%")
                       ),
                       h4("")
                       )
@@ -251,11 +311,9 @@ ui = fluidPage(theme = shinytheme("flatly"),
 #### Other databases tab ####
         tabPanel(title = "Other Databases", icon = icon("database"),
                  h4("MedGen Database repository"),
-                 fluidRow(
-                   column(2,h5("Select a file:")),
-                   column(1,shinyFilesButton('files', label='File select', title='Please select a file',multiple = FALSE))
-                   )
+                 fluidRow()
         ),
+        
 #### Dropdown navbar section ####
         navbarMenu(title = "More", icon = icon("cogs"),
               tabPanel(title = "FAQ",
@@ -361,11 +419,13 @@ observeEvent(input$reset, {
 hide(id = "main_panel")
 
 #### Panel switching & hiding ####
-  observeEvent(input$but_pos, {updateTabsetPanel(session, "main_panel", selected = "pos_panel")})
-  observeEvent(input$but_gene, {updateTabsetPanel(session, "main_panel", selected = "gene_panel")})
-  observeEvent(input$but_sample, {updateTabsetPanel(session, "main_panel", selected = "sample_panel")})
+  observeEvent(input$but_pos, {if(input$main_panel != "pos_panel"){updateTabsetPanel(session, "main_panel", selected = "pos_panel")}})
+  observeEvent(input$but_gene, {if(input$main_panel != "gene_panel"){updateTabsetPanel(session, "main_panel", selected = "gene_panel")}})
+  observeEvent(input$but_sample, {if(input$main_panel != "sample_panel"){updateTabsetPanel(session, "main_panel", selected = "sample_panel")}})
+  observeEvent(input$genepanel_but, {if(input$main_panel != "single_gene_panel"){updateTabsetPanel(session, "main_panel", selected = "single_gene_panel")}})
   
 #### COORDINATE SEARCH ####
+  #addrsID search
   #Evaluate if the coordinate provided looks roughly like a genomic coordinate
   val_cord <- eventReactive(input$but_pos, {
     validate(
@@ -384,6 +444,7 @@ hide(id = "main_panel")
     stop1 <- strsplit(strsplit(val_cord(), ":",fixed = TRUE)[[1]][2], "-", fixed = TRUE)[[1]][2]
     ##if only start was provided - look for specific coord - if both start and stop - look up range of variants - start should be less than stop
     datC <- variant_data[[which(names(variant_data) == input$cohort)]]
+    
     if(is.na(stop1)){
       datC <- datC[datC$CHROM == chr & datC$POS == start1,]
       datC <- datC[1:15]
@@ -414,14 +475,18 @@ hide(id = "main_panel")
         datC <- datC[datC$ExonicFunc.refGene == "splicing",]
       }
     ##report table to render function
-      datC <- datC[1:15]
+      names(datC)[1:38] <- column_names
+      datC <- datC[colnames(datC) %in% main_table]
+      datC <- datC[main_table]
+      ## REMOVE AFTER FIXED IN PREPROCESS SCRIPT
+      datC$AA[is.na(datC$AA)] <- "NA"
     ##report data back to function
       return(datC)
     }
   })
 
 #### GENE SEARCH ####
-  ## Add non-wildcard and rsID search
+  ## Add non-wildcard
   ##validates the input as a potential gene symbol - no weird punctuation etc
   label_gene <- eventReactive(input$but_gene, {
     gene_list <- unique(unlist(strsplit(input$gene,",",fixed = TRUE)))
@@ -500,12 +565,13 @@ hide(id = "main_panel")
   ##makes search event reactive and stores sample name as variable
   val_sample <- eventReactive(input$but_sample, {
     req(input$sample)
-    return(sample_data$DATA_ID[sample_data$SAMPLE_ID == input$sample])
+    return(as.character(sample_data$DATA_ID[sample_data$SAMPLE_ID == input$sample]))
   })
   output$sample_sex <- renderText({paste(sample_data$SEX[sample_data$DATA_ID == val_sample()])})
   output$sample_pheno <- renderText({paste(sample_data$PHENO[sample_data$DATA_ID == val_sample()])})
   output$sample_age <- renderText({paste(sample_data$AGE[sample_data$DATA_ID == val_sample()])})
-  output$sample_ethnic <- renderText({paste(sample_data$ETHNIC[sample_data$DATA_ID == val_sample()])})
+  output$sample_ethno <- renderText({paste(sample_data$ETHNO[sample_data$DATA_ID == val_sample()])})
+  output$sample_MORT <- renderText({paste(sample_data$MORT_STATUS[sample_data$DATA_ID == val_sample()])})
   
   data_sample <- eventReactive(input$but_sample, {
     datS <- variant_data[[which(names(variant_data) == input$cohort)]]
@@ -538,17 +604,46 @@ hide(id = "main_panel")
 
 #### DATA OUTPUT SECTION ####
 ## Data summary outputs
-  
-##Variant table output
-output$table_cord <- renderDataTable({as.datatable(formattable(data_cord(),list(CADD = color_tile("white", "orange"),
-                                                                                  CONSEQUENCE = formatter("span",
-                                                                                  style = x ~ style(color=ifelse(x == "nonsynonymous","orange",
-                                                                                                          ifelse(x == "synonymous","green","red")))),
-                                                                class = 'row-border compact table-hover')),
-                                                                rownames = FALSE,
-                                                                options = list(pageLength = 10,
-                                                                lengthMenu = c(10, 20, 50, 100),
-                                                                searchHighlight = TRUE))})
+
+output$table_cord <- DT::renderDataTable({datatable(data_cord(),
+  rownames = FALSE,
+    options = list(
+    pageLength = 10,
+    lengthMenu = c(10, 20, 50, 100),
+    searchHighlight = TRUE,
+    columnDefs = list(
+     list(
+      targets = c(7:10),
+      render = JS(
+        "function(data, type, row, meta) {",
+        "return type === 'display' && data.indexOf(',') > 0 ?",
+        "'<span title=\"' + data + '\">' + data.substr(0, data.indexOf(',')) + '...</span>' : data;",
+        "}")),
+     list(
+      targets = c(3,4),
+      render = JS(
+        "function(data, type, row, meta) {",
+        "return type === 'display' && data.length > 5 ?",
+        "'<span title=\"' + data + '\">' + data.substr(0, 5) + '...</span>' : data;",
+        "}"))
+      )
+    )
+  ) %>% 
+  formatStyle('CADD',
+              color = styleInterval(seq.int(1,max(data_cord()$CADD,na.rm = TRUE),1),colfuncCADD(max(seq.int(1,max(data_cord()$CADD,na.rm = TRUE)+1,1)))),
+              fontWeight = 'bold'
+  ) %>% 
+  formatStyle(
+      'SIFT',
+      color = styleEqual(sort(unique(data_cord()$SIFT)),colfuncCADD(length(sort(unique(data_cord()$SIFT))))),
+      fontWeight = 'bold'
+  ) %>% 
+  formatStyle(
+      'POLYP',
+      color = styleEqual(sort(unique(data_cord()$POLYP)),colfuncCADD(length(sort(unique(data_cord()$POLYP))))),
+      fontWeight = 'bold'
+  )
+  })
 
 output$table_gene <- renderDataTable({datatable(val_gene(),rownames = FALSE, options = list(
                                                                                 pageLength = 10,
@@ -561,6 +656,12 @@ output$table_sample <- renderDataTable({datatable(data_sample(),rownames = FALSE
                                                                                 lengthMenu = c(10, 20, 50, 100),
                                                                                 searchHighlight = TRUE
                                                                               ))})
+
+output$single_gene_panel_conseq <- renderDataTable({datatable(data.frame(c("Genecards","Ensembl","HGNC","NCBI","Uniprot","OMIM"),gene_links(RANDOM_GENE)),
+                                                              colnames = FALSE,
+                                                              rownames = FALSE,
+                                                              escape = FALSE 
+                                                              )}) 
 
 ##### Plot rendering ####
 sample_plot1 <- reactive({
@@ -584,10 +685,8 @@ output$sampleP1 <- renderPlot(sample_plot1())
 output$id_cord <- renderText({paste("Search results for ", val_cord())})
 output$id_sample <- renderText({paste(sample_data$SAMPLE_ID[sample_data$DATA_ID == val_sample()])}) ##prints header for table with search value
 output$id_gene <- renderText({label_gene()}) 
-output$sampleid_table <- renderText({paste("Non-reference variants in ", val_sample())})
-
-#### File Browser render ####
-shinyFileChoose(input, 'files', root=c(root='.'), filetypes=c('', 'txt'))
+output$sampleid_table <- renderText({paste("Non-reference samples in ",sample_data$SAMPLE_ID[sample_data$DATA_ID == val_sample()])})
+output$single_gene_panel_title <- renderText(RANDOM_GENE)
 
 #### Save mechanism ####
 ## review save mechanisms
