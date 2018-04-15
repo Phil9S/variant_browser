@@ -8,6 +8,7 @@ library(shinyjs)
 library(DT)
 library(formattable)
 library(shinyalert)
+library(jsonlite)
 
 library(stringr)
 library(markdown)
@@ -28,7 +29,9 @@ load("www/2018-04-11-db_cohort_data.RData")
 variant_data <- cohort_list
 rm(cohort_list)
 sample_data <- read.table(file = "www/2018-04-11-db_sample_data.txt", header = TRUE, sep = "\t")
-gene_data <- read.table(file = "www/gene_ids_reference.tsv", header = TRUE, sep = "\t")
+gene_data <- read.table(file = "www/gene_ids_reference.tsv", header = TRUE, sep = "\t",stringsAsFactors = F)
+gene_info <- read.table(file = "www/gene_info_formatted.tsv", header = TRUE, sep = "\t",quote = "",stringsAsFactors = F)
+
 
 column_names <- c("Id","CHR","POS","rsID","REF","ALT","QUAL","Func","GENE","CONSEQ","X1000G_all",
                   "ExAC_ALL","ExAC_NFE","HET_val","HOM_val","HET_rate","HOM_rate","MISS_rate",
@@ -41,7 +44,7 @@ main_table <- c("CHR","POS","rsID","REF","ALT","GENE","CONSEQ","TRANSCRIPT","EXO
 
 colfuncCADD <- colorRampPalette(c("chartreuse4","goldenrod2","orangered3"))
 
-RANDOM_GENE <- c("DWORF")
+RANDOM_GENE <- c("BRCA1")
 
 gene_links <- function(gene){
   refs <- c("http://www.genecards.org/cgi-bin/carddisp.pl?gene=",
@@ -53,10 +56,10 @@ gene_links <- function(gene){
   L <- vector()  
   for(i in 1:6){
     if(is.na(gene_data[gene_data$Gene.name == gene,][,i])){
-      L <- append(L,gene_data[gene_data$Gene.name == gene,][,i]) 
+      L <- append(L,"n/a") 
     } else {
       val <- gene_data[gene_data$Gene.name == gene,][,i]
-      L <- append(L,paste('<a href=\"',refs[i],val,'\" target="_blank">Info</a>',sep = ""))
+      L <- append(L,paste('<a href=\"',refs[i],val,'\" target="_blank">',val,'</a>',sep = ""))
     }
   }
   L <- unlist(L)
@@ -66,8 +69,8 @@ gene_links <- function(gene){
 
 #### UI START ####
 
-ui = fluidPage(theme = shinytheme("flatly"),
-### required calls to packages and external files           
+ui = fluidPage(theme = shinytheme("sandstone"),
+#### required calls to packages and external files          
       useShinyjs(),
       useShinyalert(),
       tags$head(
@@ -76,8 +79,7 @@ ui = fluidPage(theme = shinytheme("flatly"),
       navbarPage(title = "Medical Genetics Data Portal", collapsible = TRUE,position = "fixed-top",
 #### Data Summary panel ####
         tabPanel(title = "Data summary", icon = icon("table"),
-        h1(tags$b(""),style='text-align: center;'),
-        h3(tags$em("Version 0.2"),style='text-align: center;'),
+        h3(tags$em("Version 0.2"),style='text-align: right;'),
         hr(),
         fluidRow(
           column(4,align="center",h2(tags$b(formatC(length(variant_data),format="d", big.mark=",")))),
@@ -118,16 +120,16 @@ ui = fluidPage(theme = shinytheme("flatly"),
                       ),
                     h5(tags$em("Fitlering options")),
                     fluidRow(
-                      column(12,materialSwitch(inputId = "syn_cord_pos",label = "Include synonymous",value = FALSE,status = "success",right = TRUE)
+                      column(12,materialSwitch(inputId = "syn_cord_pos",label = "Include synonymous",value = FALSE,status = "primary",right = TRUE)
                         )),
                     fluidRow(
-                      column(12,materialSwitch(inputId = "intron_cord_pos",label = "Include intronic",value = FALSE,status = "success",right = TRUE)
+                      column(12,materialSwitch(inputId = "intron_cord_pos",label = "Include intronic",value = FALSE,status = "primary",right = TRUE)
                          )),
                     fluidRow(
-                      column(12,materialSwitch(inputId = "trunc_cord_pos",label = "Truncating only",value = FALSE,status = "success",right = TRUE)
+                      column(12,materialSwitch(inputId = "trunc_cord_pos",label = "Truncating only",value = FALSE,status = "primary",right = TRUE)
                         )),
                     fluidRow(
-                      column(12,materialSwitch(inputId = "splice_cord_pos",label = "Splicing only",value = FALSE,status = "success",right = TRUE)
+                      column(12,materialSwitch(inputId = "splice_cord_pos",label = "Splicing only",value = FALSE,status = "primary",right = TRUE)
                         )),
                     fluidRow(
                       column(12,sliderInput(inputId = "Exac_rarity_pos",
@@ -157,18 +159,27 @@ ui = fluidPage(theme = shinytheme("flatly"),
                     fluidRow(
                       column(12,textInput(inputId = "gene", label = "Gene(s)",placeholder = "APC,BRCA1,TTN"))
                             ),
+                    fluidRow(
+                      column(12,prettyCheckbox(inputId = "gene_wildcard",
+                                               label = "Exact match", 
+                                               value = FALSE,
+                                               animation = "smooth",
+                                               status = "primary",
+                                               shape = "curve",
+                                               icon = icon("check"))
+                      )),
                     h5(tags$em("Fitlering options")),
                     fluidRow(
-                      column(12,materialSwitch(inputId = "syn_cord_gene",label = "Include synonymous",value = FALSE,status = "success",right = TRUE)
+                      column(12,materialSwitch(inputId = "syn_cord_gene",label = "Include synonymous",value = FALSE,status = "primary",right = TRUE)
                              )),
                     fluidRow(
-                      column(12,materialSwitch(inputId = "intron_cord_gene",label = "Include intronic",value = FALSE,status = "success",right = TRUE)
+                      column(12,materialSwitch(inputId = "intron_cord_gene",label = "Include intronic",value = FALSE,status = "primary",right = TRUE)
                              )),
                     fluidRow(
-                      column(12,materialSwitch(inputId = "trunc_cord_gene",label = "Truncating only",value = FALSE,status = "success",right = TRUE)
+                      column(12,materialSwitch(inputId = "trunc_cord_gene",label = "Truncating only",value = FALSE,status = "primary",right = TRUE)
                              )),
                     fluidRow(
-                      column(12,materialSwitch(inputId = "splice_cord_gene",label = "Splicing only",value = FALSE,status = "success",right = TRUE)
+                      column(12,materialSwitch(inputId = "splice_cord_gene",label = "Splicing only",value = FALSE,status = "primary",right = TRUE)
                              )),
                     fluidRow(
                       column(12,sliderInput(inputId = "Exac_rarity_gene",
@@ -201,16 +212,16 @@ ui = fluidPage(theme = shinytheme("flatly"),
                                  ),
                     h5(tags$em("Fitlering options")),
                     fluidRow(
-                      column(12,materialSwitch(inputId = "syn_cord_sample",label = "Include synonymous",value = FALSE,status = "success",right = TRUE)
+                      column(12,materialSwitch(inputId = "syn_cord_sample",label = "Include synonymous",value = FALSE,status = "primary",right = TRUE)
                             )),
                     fluidRow(
-                      column(12,materialSwitch(inputId = "intron_cord_sample",label = "Include intronic",value = FALSE,status = "success",right = TRUE)
+                      column(12,materialSwitch(inputId = "intron_cord_sample",label = "Include intronic",value = FALSE,status = "primary",right = TRUE)
                             )),
                     fluidRow(
-                      column(12,materialSwitch(inputId = "trunc_cord_sample",label = "Truncating only",value = FALSE,status = "success",right = TRUE)
+                      column(12,materialSwitch(inputId = "trunc_cord_sample",label = "Truncating only",value = FALSE,status = "primary",right = TRUE)
                             )),
                     fluidRow(
-                      column(12,materialSwitch(inputId = "splice_cord_sample",label = "Splicing only",value = FALSE,status = "success",right = TRUE)
+                      column(12,materialSwitch(inputId = "splice_cord_sample",label = "Splicing only",value = FALSE,status = "primary",right = TRUE)
                             )),
                     fluidRow(
                       column(12,sliderInput(inputId = "Exac_rarity_sample",
@@ -265,9 +276,15 @@ ui = fluidPage(theme = shinytheme("flatly"),
                     ),
                     h4(""),
                 tabPanel("", value = "single_gene_panel",
-                         h4("This is the single gene panel"),
-                         textOutput(outputId = "single_gene_panel_title"),
-                         column(3,dataTableOutput(outputId = "single_gene_panel_conseq"))
+                         h2(textOutput(outputId = "single_gene_panel_title")),
+                         tags$hr(),
+                         column(4,
+                                h4("Gene information"),
+                                dataTableOutput(outputId = "single_gene_panel_info")),
+                         column(4,offset = 4,
+                                h4("External databases"),
+                                dataTableOutput(outputId = "single_gene_panel_conseq"))
+                         
                 ),
                 h4(""),
                 tabPanel("Sample", value = "sample_panel",
@@ -657,11 +674,44 @@ output$table_sample <- renderDataTable({datatable(data_sample(),rownames = FALSE
                                                                                 searchHighlight = TRUE
                                                                               ))})
 
-output$single_gene_panel_conseq <- renderDataTable({datatable(data.frame(c("Genecards","Ensembl","HGNC","NCBI","Uniprot","OMIM"),gene_links(RANDOM_GENE)),
-                                                              colnames = FALSE,
+output$single_gene_panel_conseq <- renderDataTable({datatable(data.frame(Database=c("Genecards","Ensembl","HGNC","NCBI","Uniprot","OMIM"),Link=gene_links(RANDOM_GENE)),
+                                                              class = 'compact',
+                                                              colnames = c("",""),
+                                                              selection = 'none',
                                                               rownames = FALSE,
-                                                              escape = FALSE 
-                                                              )}) 
+                                                              escape = FALSE,
+                                                              options = list(dom = 't',ordering=F,
+                                                                             initComplete = JS(
+                                                                               "function(settings, json) {",
+                                                                               "$(this.api().table().header()).css({'color': '#fff'});",
+                                                                               "}")
+                                                                             )
+                                                              ) %>% 
+    formatStyle(
+      'Database',
+      fontWeight = 'bold'
+    )
+  })
+
+output$single_gene_panel_info <- renderDataTable({datatable(data.frame(Database=c("Cytoband","Strand","Chromosome","Start (bp)","End (bp)","Gene type"),
+                                                                       Info=as.character(gene_info[gene_info$Gene.name == RANDOM_GENE,][c(2,3,4,5,6,7)])),
+                                                            class = 'compact',
+                                                            colnames = c("",""),
+                                                            selection = 'none',
+                                                            rownames = FALSE,
+                                                            escape = FALSE,
+                                                            options = list(dom = 't',ordering=F,
+                                                                           initComplete = JS(
+                                                                             "function(settings, json) {",
+                                                                             "$(this.api().table().header()).css({'color': '#fff'});",
+                                                                             "}")
+                                                            )
+) %>% 
+    formatStyle(
+      'Database',
+      fontWeight = 'bold'
+    )
+})
 
 ##### Plot rendering ####
 sample_plot1 <- reactive({
