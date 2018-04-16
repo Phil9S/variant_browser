@@ -67,6 +67,13 @@ gene_links <- function(gene){
   return(L)
 }
 
+## JSON PREP
+
+data_forJSON <- as.data.frame(table(sample_data$COHORT))
+data_forJSON$Percent <- signif(data_forJSON$Freq / sum(data_forJSON$Freq) * 100,digits = 3)
+colnames(data_forJSON) <- c("name","total","percent")
+
+
 #### UI START ####
 
 ui = fluidPage(theme = shinytheme("sandstone"),
@@ -74,8 +81,10 @@ ui = fluidPage(theme = shinytheme("sandstone"),
       useShinyjs(),
       useShinyalert(),
       tags$head(
-        tags$link(rel = "stylesheet", type = "text/css", href = "style.css")),
+      tags$link(rel = "stylesheet", type = "text/css", href = "style.css")),
       tags$style(type="text/css", "body {padding-top: 80px;}"),
+      tags$script(src="https://d3js.org/d3.v3.min.js"),
+      tags$script(src="plots.js"),
       navbarPage(title = "Medical Genetics Data Portal", collapsible = TRUE,position = "fixed-top",
 #### Data Summary panel ####
         tabPanel(title = "Data summary", icon = icon("table"),
@@ -87,12 +96,16 @@ ui = fluidPage(theme = shinytheme("sandstone"),
           column(4,align="center",h2(tags$b(formatC(length(unique(unlist(sapply(variant_data,function(x) unique(x$Gene.refGene))))),format="d", big.mark=","))))
           ),
         fluidRow(
-          column(4,align="center",h2("Cohorts")),
+          column(4,align="center",
+                 h2("Cohorts")),
           column(4,align="center",h2("Variants")),
           column(4,align="center",h2("Genes"))
         ),
         hr(),
-        h4(tags$b("Data summary"))
+        h4(tags$b("Data summary")),
+        fluidRow(
+          column(4,tags$div(id="plot",style = "align: center"))
+          )
         ),
 #### Data selection panel ####
       tabPanel(title = "Browser", icon = icon("flask"),
@@ -349,6 +362,11 @@ ui = fluidPage(theme = shinytheme("sandstone"),
 
 ## Server code
 server = function(input, output, session){
+### Json main page - cohort graphs
+  var_json <- toJSON(data_forJSON,pretty = TRUE)
+  session$sendCustomMessage("jsondata",var_json)
+  
+  
 #### cohort selection & resetting ####
 observe({
     toggle(id = "animation", anim = TRUE, animType = "fade",
