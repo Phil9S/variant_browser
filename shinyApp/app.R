@@ -70,8 +70,8 @@ gene_links <- function(gene){
 ## JSON PREP
 
 data_forJSON <- as.data.frame(table(sample_data$COHORT))
-data_forJSON$Percent <- signif(data_forJSON$Freq / sum(data_forJSON$Freq) * 100,digits = 3)
-colnames(data_forJSON) <- c("name","total","percent")
+#data_forJSON$Percent <- signif(data_forJSON$Freq / sum(data_forJSON$Freq) * 100,digits = 3)
+colnames(data_forJSON) <- c("name","total")
 
 
 #### UI START ####
@@ -81,10 +81,13 @@ ui = fluidPage(theme = shinytheme("sandstone"),
       useShinyjs(),
       useShinyalert(),
       tags$head(
-      tags$link(rel = "stylesheet", type = "text/css", href = "style.css")),
+      tags$link(rel = "stylesheet", type = "text/css", href = "style.css"),
+      tags$link(rel = "stylesheet", type = "text/css", href = "https://cdnjs.cloudflare.com/ajax/libs/c3/0.4.10/c3.min.css"),
       tags$style(type="text/css", "body {padding-top: 80px;}"),
-      tags$script(src="https://d3js.org/d3.v3.min.js"),
-      tags$script(src="plots.js"),
+      tags$script(src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.16/d3.min.js"),
+      tags$script(src="https://cdnjs.cloudflare.com/ajax/libs/c3/0.4.10/c3.min.js"),
+      tags$script(src="plots.js")
+      ),
       navbarPage(title = "Medical Genetics Data Portal", collapsible = TRUE,position = "fixed-top",
 #### Data Summary panel ####
         tabPanel(title = "Data summary", icon = icon("table"),
@@ -362,8 +365,9 @@ ui = fluidPage(theme = shinytheme("sandstone"),
 
 ## Server code
 server = function(input, output, session){
+  
 ### Json main page - cohort graphs
-  var_json <- toJSON(data_forJSON,pretty = TRUE)
+  var_json <- toJSON(data_forJSON)
   session$sendCustomMessage("jsondata",var_json)
   
   
