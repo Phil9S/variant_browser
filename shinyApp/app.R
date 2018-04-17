@@ -6,14 +6,13 @@ library(shinycssloaders)
 library(shinyWidgets)
 library(shinyjs)
 library(DT)
-library(formattable)
 library(shinyalert)
 library(jsonlite)
+library(htmltools)
+library(bsplus)
 
 library(stringr)
 library(markdown)
-library(reshape2)
-library(ggplot2)
 
 ## Fix intronic filtering
 ## shorten nonframeshifting / frameshifting -> nFS / FS
@@ -76,39 +75,49 @@ colnames(data_forJSON) <- c("name","total")
 
 #### UI START ####
 
-ui = fluidPage(theme = shinytheme("sandstone"),
+ui = fluidPage(theme = shinytheme("flatly"),
 #### required calls to packages and external files          
       useShinyjs(),
       useShinyalert(),
+      
       tags$head(
-      tags$link(rel = "stylesheet", type = "text/css", href = "style.css"),
       tags$link(rel = "stylesheet", type = "text/css", href = "https://cdnjs.cloudflare.com/ajax/libs/c3/0.4.10/c3.min.css"),
       tags$style(type="text/css", "body {padding-top: 80px;}"),
       tags$script(src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.16/d3.min.js"),
       tags$script(src="https://cdnjs.cloudflare.com/ajax/libs/c3/0.4.10/c3.min.js"),
-      tags$script(src="plots.js")
+      tags$script(src="plots.js"),
+      tags$link(rel = "stylesheet", type = "text/css", href = "style.css")
       ),
-      navbarPage(title = "Medical Genetics Data Portal", collapsible = TRUE,position = "fixed-top",
+
+      navbarPage(title = "MedGenDP", collapsible = TRUE,position = "fixed-top",
 #### Data Summary panel ####
         tabPanel(title = "Data summary", icon = icon("table"),
-        h3(tags$em("Version 0.2"),style='text-align: right;'),
+        fluidRow(column(3,h3(tags$b("Medical Genetics Data Portal"))),column(2,offset = 7,h5(tags$em("Version 0.2"),style='text-align: right; vertical-align: middle'))),
         hr(),
         fluidRow(
-          column(4,align="center",h2(tags$b(formatC(length(variant_data),format="d", big.mark=",")))),
-          column(4,align="center",h2(tags$b(formatC(sum(sapply(variant_data,nrow)),format="d", big.mark=",")))),
-          column(4,align="center",h2(tags$b(formatC(length(unique(unlist(sapply(variant_data,function(x) unique(x$Gene.refGene))))),format="d", big.mark=","))))
-          ),
-        fluidRow(
-          column(4,align="center",
-                 h2("Cohorts")),
-          column(4,align="center",h2("Variants")),
-          column(4,align="center",h2("Genes"))
+          column(9,
+                 tags$div(id="plot")
+                 ),
+          column(3,
+              fluidRow(h4(tags$b("Data summary"))
+              ),
+              fluidRow(
+                column(4,style = "text-align: center",h4("Samples"),tags$b(formatC(length(unique(sample_data$SAMPLE_ID)),format="d", big.mark=","))),
+                column(4,style = "text-align: center",h4("Populations"),tags$b(formatC(length(unique(sample_data$ETHNO)),format="d", big.mark=","))),
+                column(4,style = "text-align: center",h4("Phenotypes"),tags$b(formatC(length(unique(sample_data$PHENOTYPE)),format="d", big.mark=",")))
+              ),
+              fluidRow(
+                column(4,style = "text-align: center",h4("Cohorts"),tags$b(formatC(length(variant_data),format="d", big.mark=","))),
+                column(4,style = "text-align: center",h4("Variants"),tags$b(formatC(sum(sapply(variant_data,nrow)),format="d", big.mark=","))),
+                column(4,style = "text-align: center",h4("Genes"),tags$b(formatC(length(unique(unlist(sapply(variant_data,function(x) unique(x$Gene.refGene))))),format="d", big.mark=",")))
+              )
+            )
         ),
         hr(),
-        h4(tags$b("Data summary")),
-        fluidRow(
-          column(4,tags$div(id="plot",style = "align: center"))
-          )
+        bs_accordion(id = "splash_info") %>%
+          bs_set_opts(panel_type = "default", use_heading_link = TRUE) %>%
+          bs_append(title = "Features", content = "Test") %>%
+          bs_append(title = "Data generation", content = "Test")
         ),
 #### Data selection panel ####
       tabPanel(title = "Browser", icon = icon("flask"),
@@ -737,17 +746,7 @@ output$single_gene_panel_info <- renderDataTable({datatable(data.frame(Database=
 
 ##### Plot rendering ####
 sample_plot1 <- reactive({
-  ggplot(data_sample(),aes(x = ExonicFunc.refGene,fill = ExonicFunc.refGene))+
-    geom_bar() +
-    labs(list(title = "Frequency of Consequences", x = "", y = "")) +
-    scale_x_discrete(labels=c("frameshift deletion" = "FS_del", "stopgain" = "stop gain",
-                              "frameshift insertion" = "FS_ins", "nonsynonymous" = "nonsyn", "nonframeshift insertion" = "nFSins",
-                              "synonymous" = "syn", "stop loss" = "stop loss", "nonframeshift deletion" = "nFSdel"),expand = c(0,0))+
-    scale_y_continuous(expand = c(0,0))+
-    theme(panel.background = element_rect(fill = 'white'), axis.text.x=element_text(size = 10)) +
-    theme(panel.border = element_blank(), axis.line = element_line(colour="black"), panel.grid.major = element_line(colour = "gray90")) +
-    theme(panel.grid.minor = element_blank(), plot.title = element_text(size = 14,face = "bold",colour = "gray10",margin = margin(0,0,10,0))) +
-    theme(axis.title = element_text(size = 16), plot.margin = margin(10,25,0,0), axis.text.y = element_text(size=12), legend.position="none")
+  
 })
 output$sampleP1 <- renderPlot(sample_plot1())
 
