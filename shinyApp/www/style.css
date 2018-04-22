@@ -27,4 +27,16 @@
   fill:white;
   stroke:black;
 }
+
+.c3-chart-arcs-title {
+  font-size: 19px;
+  font-family: "Lato","Helvetica Neue",Helvetica,Arial,sans-serif;
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+#plotPheno.c3 {
+  height: 380px;
+}
+
 </style>
