@@ -21,12 +21,14 @@ library(markdown)
 ## gene fields with comma seperated entries
 ## remove cosmic fields - likely not useful
 ## colour schemes!!
+## NA -> N/a for some columns like rsID
 ## site info row names out of order
 ## add aggregated frequencies to gene page
 ## Data undefined on donut plots - custom tooltips
 ## Warning in gene_info$Gene.name == unique(val_gene()$GENE) :longer object length is not a multiple of shorter object length - GENE SEARCH ERROR
 ## fix gene description printing on single gene page
 ## HET OR HOM CALL FOR SAMPLE CALLS - Add column?
+## single gene panel reliant on genelinks() data containing values after filtering
 ## add additional rarites for exac and 1kg
 ## shorten nonframeshifting / frameshifting -> nFS / FS
 ## support for comma-sv in clinvar/cosmic table on site panel - add drop down?
@@ -55,7 +57,7 @@ column_names <- c("Id","CHR","POS","rsID","REF","ALT","QUAL","Func","GENE","CONS
 main_table <- c("CHR","POS","rsID","REF","ALT","GENE","CONSEQ","TRANSCRIPT","EXON","DNA",
                 "AA","X1000G_all","ExAC_ALL","INT_freq","MISS_rate","SIFT","POLYP","CADD")
 
-sitreinfo_cols <- c("rsID","REF","ALT","QUAL","GENE","Func","CONSEQ")
+sitreinfo_cols <- c("rsID","REF","ALT","QUAL","Func","GENE","CONSEQ")
 
 siteconseq_cols <- c("SIFT","POLYP","POLYP_VAR","LRT","MUT_TASTER","MUT_ASSESSOR","FATHMM","PROVEAN","CADD")
 
@@ -87,10 +89,6 @@ gene_links <- function(gene){
   
   return(L)
 }
-
-## test variable for site panel
-testVAR <- variant_data[[3]][454,]
-names(testVAR)[1:38] <- column_names
 
 #### JSON PREP ####
 
@@ -240,9 +238,6 @@ ui = fluidPage(theme = shinytheme("flatly"),
           fluidRow(
            column(12,actionButton(inputId = "reset",label = "",icon = icon("undo"),width = "100%",style='padding:2px;'))
           ),
-          fluidRow(
-           column(12,actionButton(inputId = "site_test",label = "Test")) 
-          ),
          tags$hr(),
          div(id = "animation",
          conditionalPanel("input.cohort != 'None'",
@@ -252,7 +247,7 @@ ui = fluidPage(theme = shinytheme("flatly"),
                   tabPanel(title = "Position",value = "data_select_pos",
                    wellPanel(
                     fluidRow(
-                      column(12, textInput(inputId = "pos", label = "Position(s)",placeholder = "X:2335 or X:2335-4898"))
+                      column(12, textInput(inputId = "pos", label = "Position",placeholder = "Position or rsID"))
                       ),
                     h5(tags$em("Fitlering options")),
                     fluidRow(
@@ -593,57 +588,6 @@ ui = fluidPage(theme = shinytheme("flatly"),
 #### SERVER START #### 
 server = function(input, output, session){
 
-  
-## Site panel features - move once done
-updateSelectInput(session,
-                  inputId = "site_sample_select",
-                  choices = as.character(sample_data$SAMPLE_ID[sample_data$DATA_ID %in% names(testVAR[39:ncol(testVAR)][which(testVAR[39:ncol(testVAR)] == 1 | testVAR[39:ncol(testVAR)] == 2)])])
-                  )
-  
-observe({
-  output$site_sample_table <- renderDataTable({datatable(as.data.frame(sample_data[sample_data$SAMPLE_ID == input$site_sample_select,][c(1,4:8)]),
-    class = 'compact',
-    selection = 'none',
-    rownames = FALSE,
-    escape = FALSE,
-    options = list(dom = 't',ordering=F)
-      )
-    })
-})
-
-## Transcript table
-updateSelectInput(session, inputId = "site_transcript_select", choices = unlist(str_split(testVAR$TRANSCRIPT,",")))
-transcripts <- testVAR[names(testVAR) %in% c("TRANSCRIPT","EXON","DNA","AA")]
-
-if(length(str_split(transcripts$TRANSCRIPT,pattern = ",",simplify = T)) > 1){
-  transcripts <- as.data.frame(apply(transcripts,2,function(x) str_split(x,pattern = ",",simplify = T)))
-}
-  
-observe({
-  output$site_transcript_table <- renderDataTable({datatable(transcripts[transcripts$TRANSCRIPT == input$site_transcript_select,],
-                                                         class = 'compact',
-                                                         selection = 'none',
-                                                         rownames = FALSE,
-                                                         escape = FALSE,
-                                                         options = list(dom = 't',ordering=F)
-                                            )
-                                            })
-})
-
-observe({
-  index_AF <- names(testVAR[names(testVAR) %in% siterarity_cols])
-  site_AF <- t(testVAR[names(testVAR) %in% siterarity_cols])
-  site_AF <- data.frame(index_AF,site_AF)
-  colnames(site_AF) <- c("Dataset","AF")
-  output$site_rarity_table <- renderDataTable({datatable(site_AF,
-                                                             selection = 'none',
-                                                             rownames = FALSE,
-                                                             escape = FALSE,
-                                                             options = list(dom = 't',ordering=F)
-                                                      )
-                                                    })
-})
-    
 #### Json main page - cohort graphs ####
   
 session$sendCustomMessage("cohortjson",var_cohort_json)
@@ -743,42 +687,49 @@ hide(id = "main_panel")
   observeEvent(input$but_pos, {if(input$main_panel != "pos_panel"){updateTabsetPanel(session, "main_panel", selected = "pos_panel")}})
   observeEvent(input$but_gene, {if(input$main_panel != "gene_panel"){updateTabsetPanel(session, "main_panel", selected = "gene_panel")}})
   observeEvent(input$but_sample, {if(input$main_panel != "sample_panel"){updateTabsetPanel(session, "main_panel", selected = "sample_panel")}})
-  observeEvent(input$site_test, {if(input$main_panel != "site_panel"){updateTabsetPanel(session, "main_panel", selected = "site_panel")}})
 
 #### COORDINATE SEARCH ####
   #addrsID search
   #Evaluate if the coordinate provided looks roughly like a genomic coordinate
+  cord_label <- eventReactive(input$but_pos,{
+    return(input$pos)
+  })
+  
   val_cord <- eventReactive(input$but_pos, {
     shiny::validate(
-      need(grepl(pattern = "([XY]|[1-9]|1[0-9]|2[0-2]):[0-9]+(-[0-9]+)?", input$pos),
+      need(grepl(pattern = "(^chr([XY]|[1-9]|1[0-9]|2[0-2])|([XY]|^[1-9]|^1[0-9]|^2[0-2])):[0-9]+(-[0-9]+)?|(^rs[0-9]+)", input$pos),
            message = "Please enter a valid chromosome position")
           ## message passed if it looks weird or malformed e.g. contains letters
     )
     ##passes input value if no problem
-    ##prints header for table with search value
     return(input$pos)
   })
   data_cord <- eventReactive(input$but_pos, {
-    ##split the inputpos into its chr start and stop components
-    chr <- strsplit(val_cord(), ":",fixed = TRUE)[[1]][1]
-    start1 <- strsplit(strsplit(val_cord(), ":",fixed = TRUE)[[1]][2], "-", fixed = TRUE)[[1]][1]
-    stop1 <- strsplit(strsplit(val_cord(), ":",fixed = TRUE)[[1]][2], "-", fixed = TRUE)[[1]][2]
-    ##if only start was provided - look for specific coord - if both start and stop - look up range of variants - start should be less than stop
-    datC <- variant_data[[which(names(variant_data) == input$cohort)]]
-    
-    if(is.na(stop1)){
-      datC <- datC[datC$CHROM == chr & datC$POS == start1,]
-      datC <- datC[1:15]
-      return(datC)
-      ##report data back to function2:1-9999999999999999
-    } else {
-      datC <- datC[datC$CHROM == chr 
-            & as.numeric(datC$POS) >= as.numeric(start1)
-            & as.numeric(datC$POS) <= as.numeric(stop1),]
-    
-    
+      
+      datC <- variant_data[[which(names(variant_data) == input$cohort)]]
+      
+      if(grepl("^rs", val_cord()) == TRUE){
+          datC <- datC[datC$rsID == val_cord(),]
+      } else {
+          ##split the inputpos into its chr start and stop components
+          chr <- strsplit(val_cord(), ":",fixed = TRUE)[[1]][1]
+          start1 <- strsplit(strsplit(val_cord(), ":",fixed = TRUE)[[1]][2], "-", fixed = TRUE)[[1]][1]
+          stop1 <- strsplit(strsplit(val_cord(), ":",fixed = TRUE)[[1]][2], "-", fixed = TRUE)[[1]][2]
+          ##if only start was provided - look for specific coord - if both start and stop - look up range of variants - start should be less than stop
+          
+          if(is.na(stop1)){
+            datC <- datC[datC$CHROM == chr & datC$POS == start1,]
+            ##report data back to function2:1-9999999999999999
+          } else {
+            datC <- datC[datC$CHROM == chr 
+                  & as.numeric(datC$POS) >= as.numeric(start1)
+                  & as.numeric(datC$POS) <= as.numeric(stop1),]
+          }
+      }
+      
       datC <- datC[datC$X1000g2015aug_all <= input$X1000G_rarity_pos & datC$ExAC_ALL <= input$Exac_rarity_pos,]
-    ########### INTRONIC   
+      
+      ########### INTRONIC   
       if(input$intron_cord_pos == FALSE){
       datC <- datC[!is.na(datC$ExonicFunc.refGene),]
       }
@@ -802,8 +753,12 @@ hide(id = "main_panel")
       ## REMOVE AFTER FIXED IN PREPROCESS SCRIPT
       datC$AA[is.na(datC$AA)] <- "NA"
     ##report data back to function
-      return(datC)
-    }
+      if(nrow(datC) == 1){
+        if(input$main_panel != "site_panel"){updateTabsetPanel(session, "main_panel", selected = "site_panel")}
+        return(datC)
+      } else {
+        return(datC) 
+      }
   })
 
 #### GENE SEARCH ####
@@ -937,70 +892,83 @@ hide(id = "main_panel")
   })
 
 #### Data table outputs ####
-output$table_cord <- renderDataTable({datatable(data_cord(),
-  rownames = FALSE,
-    options = list(
-    pageLength = 10,
-    lengthMenu = c(10, 20, 50, 100),
-    searchHighlight = TRUE,
-    columnDefs = list(
-     list(
-      targets = c(7:10),
-      render = JS(
-        "function(data, type, row, meta) {",
-        "return type === 'display' && data.indexOf(',') > 0 ?",
-        "'<span title=\"' + data + '\">' + data.substr(0, data.indexOf(',')) + '...</span>' : data;",
-        "}")),
-     list(
-      targets = c(3,4),
-      render = JS(
-        "function(data, type, row, meta) {",
-        "return type === 'display' && data.length > 5 ?",
-        "'<span title=\"' + data + '\">' + data.substr(0, 5) + '...</span>' : data;",
-        "}"))
+  
+output$table_cord <- renderDataTable({
+  if(nrow(data_cord()) == 0){
+    datatable(data_cord(),rownames = FALSE,
+              options = list(
+                pageLength = 10,
+                lengthMenu = c(10, 20, 50, 100),
+                searchHighlight = TRUE))
+  } else {
+    datatable(data_cord(),rownames = FALSE,
+      options = list(
+      pageLength = 10,
+      lengthMenu = c(10, 20, 50, 100),
+      searchHighlight = TRUE,
+      columnDefs = list(
+       list(
+        targets = c(7:10),
+        render = JS(
+          "function(data, type, row, meta) {",
+          "return type === 'display' && data.indexOf(',') > 0 ?",
+          "'<span title=\"' + data + '\">' + data.substr(0, data.indexOf(',')) + '...</span>' : data;",
+          "}")),
+       list(
+        targets = c(3,4),
+        render = JS(
+          "function(data, type, row, meta) {",
+          "return type === 'display' && data.length > 5 ?",
+          "'<span title=\"' + data + '\">' + data.substr(0, 5) + '...</span>' : data;",
+          "}"))
+        )
       )
+    ) %>% 
+    formatStyle('CADD',
+                color = styleInterval(seq.int(1,max(data_cord()$CADD,na.rm = TRUE),1),colfuncCADD(max(seq.int(1,max(data_cord()$CADD,na.rm = TRUE)+1,1)))),
+                fontWeight = 'bold'
+    ) %>% 
+    formatStyle(
+        'SIFT',
+        color = styleEqual(sort(unique(data_cord()$SIFT)),colfuncCADD(length(sort(unique(data_cord()$SIFT))))),
+        fontWeight = 'bold'
+    ) %>% 
+    formatStyle(
+        'POLYP',
+        color = styleEqual(sort(unique(data_cord()$POLYP)),colfuncCADD(length(sort(unique(data_cord()$POLYP))))),
+        fontWeight = 'bold'
     )
-  ) %>% 
-  formatStyle('CADD',
-              color = styleInterval(seq.int(1,max(data_cord()$CADD,na.rm = TRUE),1),colfuncCADD(max(seq.int(1,max(data_cord()$CADD,na.rm = TRUE)+1,1)))),
-              fontWeight = 'bold'
-  ) %>% 
-  formatStyle(
-      'SIFT',
-      color = styleEqual(sort(unique(data_cord()$SIFT)),colfuncCADD(length(sort(unique(data_cord()$SIFT))))),
-      fontWeight = 'bold'
-  ) %>% 
-  formatStyle(
-      'POLYP',
-      color = styleEqual(sort(unique(data_cord()$POLYP)),colfuncCADD(length(sort(unique(data_cord()$POLYP))))),
-      fontWeight = 'bold'
-  )
-  })
+  }
+})
 
-output$table_gene <- renderDataTable({datatable(val_gene(),
-                                                rownames = FALSE,
-                                                options = list(
-                                                  pageLength = 10,
-                                                  lengthMenu = c(10, 20, 50, 100),
-                                                  searchHighlight = TRUE,
-                                                  columnDefs = list(
-                                                    list(
-                                                      targets = c(7:10),
-                                                      render = JS(
-                                                        "function(data, type, row, meta) {",
-                                                        "return type === 'display' && data.indexOf(',') > 0 ?",
-                                                        "'<span title=\"' + data + '\">' + data.substr(0, data.indexOf(',')) + '...</span>' : data;",
-                                                        "}")),
-                                                    list(
-                                                      targets = c(3,4),
-                                                      render = JS(
-                                                        "function(data, type, row, meta) {",
-                                                        "return type === 'display' && data.length > 5 ?",
-                                                        "'<span title=\"' + data + '\">' + data.substr(0, 5) + '...</span>' : data;",
-                                                        "}"))
-    )
-  )
-) %>% 
+output$table_gene <- renderDataTable({
+  if(nrow(val_gene()) == 0){
+    datatable(val_gene(),rownames = FALSE,
+              options = list(pageLength = 10,
+                             lengthMenu = c(10, 20, 50, 100),
+                             searchHighlight = TRUE))
+  } else {
+    datatable(val_gene(),rownames = FALSE,
+              options = list(pageLength = 10,
+                             lengthMenu = c(10, 20, 50, 100),
+                             searchHighlight = TRUE,
+                             columnDefs = list(list(
+                                               targets = c(7:10),
+                                               render = JS(
+                                               "function(data, type, row, meta) {",
+                                               "return type === 'display' && data.indexOf(',') > 0 ?",
+                                               "'<span title=\"' + data + '\">' + data.substr(0, data.indexOf(',')) + '...</span>' : data;",
+                                               "}")),
+                                               list(
+                                               targets = c(3,4),
+                                               render = JS(
+                                               "function(data, type, row, meta) {",
+                                               "return type === 'display' && data.length > 5 ?",
+                                               "'<span title=\"' + data + '\">' + data.substr(0, 5) + '...</span>' : data;",
+                                               "}"))
+                                               )
+                             )
+    ) %>% 
     formatStyle('CADD',
                 color = styleInterval(seq.int(1,max(val_gene()$CADD,na.rm = TRUE),1),colfuncCADD(max(seq.int(1,max(val_gene()$CADD,na.rm = TRUE)+1,1)))),
                 fontWeight = 'bold'
@@ -1015,87 +983,105 @@ output$table_gene <- renderDataTable({datatable(val_gene(),
       color = styleEqual(sort(unique(val_gene()$POLYP)),colfuncCADD(length(sort(unique(val_gene()$POLYP))))),
       fontWeight = 'bold'
     )
+  }  
 })                                               
 
-output$table_single_gene <- renderDataTable({datatable(val_gene(),
-                                                       rownames = FALSE,
-                                                       options = list(
-                                                         pageLength = 10,
-                                                         lengthMenu = c(10, 20, 50, 100),
-                                                         searchHighlight = TRUE,
-                                                         columnDefs = list(
-                                                           list(
-                                                             targets = c(7:10),
-                                                             render = JS(
-                                                               "function(data, type, row, meta) {",
-                                                               "return type === 'display' && data.indexOf(',') > 0 ?",
-                                                               "'<span title=\"' + data + '\">' + data.substr(0, data.indexOf(',')) + '...</span>' : data;",
-                                                               "}")),
-                                                           list(
-                                                             targets = c(3,4),
-                                                             render = JS(
-                                                               "function(data, type, row, meta) {",
-                                                               "return type === 'display' && data.length > 5 ?",
-                                                               "'<span title=\"' + data + '\">' + data.substr(0, 5) + '...</span>' : data;",
-                                                               "}"))
-                                                         )
-                                                       )
-) %>% 
-    formatStyle('CADD',
-                color = styleInterval(seq.int(1,max(val_gene()$CADD,na.rm = TRUE),1),colfuncCADD(max(seq.int(1,max(val_gene()$CADD,na.rm = TRUE)+1,1)))),
-                fontWeight = 'bold'
+output$table_sample <- renderDataTable({
+  if(nrow(data_sample()) == 0){
+    datatable(val_gene(),rownames = FALSE,
+              options = list(pageLength = 10,
+                             lengthMenu = c(10, 20, 50, 100),
+                             searchHighlight = TRUE))
+  } else {
+    datatable(data_sample(),
+              rownames = FALSE,
+              options = list(
+                pageLength = 10,
+                lengthMenu = c(10, 20, 50, 100),
+                searchHighlight = TRUE,
+                columnDefs = list(
+                  list(
+                    targets = c(7:10),
+                    render = JS(
+                      "function(data, type, row, meta) {",
+                      "return type === 'display' && data.indexOf(',') > 0 ?",
+                      "'<span title=\"' + data + '\">' + data.substr(0, data.indexOf(',')) + '...</span>' : data;",
+                      "}")),
+                  list(
+                    targets = c(3,4),
+                    render = JS(
+                      "function(data, type, row, meta) {",
+                      "return type === 'display' && data.length > 5 ?",
+                      "'<span title=\"' + data + '\">' + data.substr(0, 5) + '...</span>' : data;",
+                      "}"))
+                )
+              )
     ) %>% 
-    formatStyle(
-      'SIFT',
-      color = styleEqual(sort(unique(val_gene()$SIFT)),colfuncCADD(length(sort(unique(val_gene()$SIFT))))),
-      fontWeight = 'bold'
-    ) %>% 
-    formatStyle(
-      'POLYP',
-      color = styleEqual(sort(unique(val_gene()$POLYP)),colfuncCADD(length(sort(unique(val_gene()$POLYP))))),
-      fontWeight = 'bold'
-    )
-})                                                     
-
-output$table_sample <- renderDataTable({datatable(data_sample(),
-                                                  rownames = FALSE,
-                                                  options = list(
-                                                    pageLength = 10,
-                                                    lengthMenu = c(10, 20, 50, 100),
-                                                    searchHighlight = TRUE,
-                                                    columnDefs = list(
-                                                      list(
-                                                        targets = c(7:10),
-                                                        render = JS(
-                                                          "function(data, type, row, meta) {",
-                                                          "return type === 'display' && data.indexOf(',') > 0 ?",
-                                                          "'<span title=\"' + data + '\">' + data.substr(0, data.indexOf(',')) + '...</span>' : data;",
-                                                          "}")),
-                                                      list(
-                                                        targets = c(3,4),
-                                                        render = JS(
-                                                          "function(data, type, row, meta) {",
-                                                          "return type === 'display' && data.length > 5 ?",
-                                                          "'<span title=\"' + data + '\">' + data.substr(0, 5) + '...</span>' : data;",
-                                                          "}"))
-                                                    )
-                                                  )
-) %>% 
-    formatStyle('CADD',
-                color = styleInterval(seq.int(1,max(data_sample()$CADD,na.rm = TRUE),1),colfuncCADD(max(seq.int(1,max(data_sample()$CADD,na.rm = TRUE)+1,1)))),
-                fontWeight = 'bold'
-    ) %>% 
-    formatStyle(
-      'SIFT',
-      color = styleEqual(sort(unique(data_sample()$SIFT)),colfuncCADD(length(sort(unique(data_sample()$SIFT))))),
-      fontWeight = 'bold'
-    ) %>% 
-    formatStyle(
-      'POLYP',
-      color = styleEqual(sort(unique(data_sample()$POLYP)),colfuncCADD(length(sort(unique(data_sample()$POLYP))))),
-      fontWeight = 'bold'
-    )
+      formatStyle('CADD',
+                  color = styleInterval(seq.int(1,max(data_sample()$CADD,na.rm = TRUE),1),colfuncCADD(max(seq.int(1,max(data_sample()$CADD,na.rm = TRUE)+1,1)))),
+                  fontWeight = 'bold'
+      ) %>% 
+      formatStyle(
+        'SIFT',
+        color = styleEqual(sort(unique(data_sample()$SIFT)),colfuncCADD(length(sort(unique(data_sample()$SIFT))))),
+        fontWeight = 'bold'
+      ) %>% 
+      formatStyle(
+        'POLYP',
+        color = styleEqual(sort(unique(data_sample()$POLYP)),colfuncCADD(length(sort(unique(data_sample()$POLYP))))),
+        fontWeight = 'bold'
+      )
+  }
 }) 
+
+output$table_single_gene <- renderDataTable({
+  if(nrow(val_gene()) == 0){
+    datatable(val_gene(),rownames = FALSE,
+              options = list(pageLength = 10,
+                             lengthMenu = c(10, 20, 50, 100),
+                             searchHighlight = TRUE))
+  } else {
+    
+    datatable(val_gene(),
+              rownames = FALSE,
+              options = list(
+                pageLength = 10,
+                lengthMenu = c(10, 20, 50, 100),
+                searchHighlight = TRUE,
+                columnDefs = list(
+                  list(
+                    targets = c(7:10),
+                    render = JS(
+                      "function(data, type, row, meta) {",
+                      "return type === 'display' && data.indexOf(',') > 0 ?",
+                      "'<span title=\"' + data + '\">' + data.substr(0, data.indexOf(',')) + '...</span>' : data;",
+                      "}")),
+                  list(
+                    targets = c(3,4),
+                    render = JS(
+                      "function(data, type, row, meta) {",
+                      "return type === 'display' && data.length > 5 ?",
+                      "'<span title=\"' + data + '\">' + data.substr(0, 5) + '...</span>' : data;",
+                      "}"))
+                )
+              )
+    ) %>% 
+      formatStyle('CADD',
+                  color = styleInterval(seq.int(1,max(val_gene()$CADD,na.rm = TRUE),1),colfuncCADD(max(seq.int(1,max(val_gene()$CADD,na.rm = TRUE)+1,1)))),
+                  fontWeight = 'bold'
+      ) %>% 
+      formatStyle(
+        'SIFT',
+        color = styleEqual(sort(unique(val_gene()$SIFT)),colfuncCADD(length(sort(unique(val_gene()$SIFT))))),
+        fontWeight = 'bold'
+      ) %>% 
+      formatStyle(
+        'POLYP',
+        color = styleEqual(sort(unique(val_gene()$POLYP)),colfuncCADD(length(sort(unique(val_gene()$POLYP))))),
+        fontWeight = 'bold'
+      )
+  }  
+})
 
 output$single_gene_panel_ext <- renderDataTable({datatable(data.frame(Database=c("Genecards","Ensembl","HGNC","NCBI","Uniprot","OMIM"),
                                                                          Link=gene_links(unique(val_gene()$GENE))),
@@ -1137,85 +1123,162 @@ output$single_gene_panel_info <- renderDataTable({datatable(data.frame(Database=
                                                                 )
                                                             })
 
-output$site_info <- renderDataTable({datatable(data.frame(Names=names(testVAR[names(testVAR) %in% sitreinfo_cols]),values=as.character(testVAR[sitreinfo_cols])),
-                                      class = 'compact',
-                                      colnames = c("",""),
-                                      selection = 'none',
-                                      rownames = FALSE,
-                                      escape = FALSE,
-                                      options = list(dom = 't',ordering=F,
-                                                     initComplete = JS(
-                                                       "function(settings, json) {",
-                                                       "$(this.api().table().header()).css({'color': '#fff'});",
-                                                       "}")
-                                      )
-                                    ) %>% formatStyle(
-                                        'Names',
-                                        fontWeight = 'bold'
-                                      )
-                                    })
+#### Site specific page rendering ####
+observe({
+  ## checking only one row exists for data_cord()
+  if(nrow(data_cord()) == 1){
+    ## Panel switching to site panel
+    if(input$main_panel != "site_panel"){updateTabsetPanel(session, "main_panel", selected = "site_panel")}
+      ## Retrieving site info from unfiltered data - by chr and pos - maybe add ALT as a value for multiallelic support
+      site_VAL <- variant_data[[which(names(variant_data) == input$cohort)]][variant_data[[which(names(variant_data) == input$cohort)]]$CHR == data_cord()$CHR & variant_data[[which(names(variant_data) == input$cohort)]]$POS == data_cord()$POS,]
+      names(site_VAL)[1:38] <- column_names
+      
+      updateSelectInput(session,
+                        inputId = "site_sample_select",
+                        choices = as.character(sample_data$SAMPLE_ID[sample_data$DATA_ID %in% names(site_VAL[39:ncol(site_VAL)][which(site_VAL[39:ncol(site_VAL)] == 1 | site_VAL[39:ncol(site_VAL)] == 2)])])
+      )
 
-output$site_conseq <- renderDataTable({datatable(testVAR[siteconseq_cols],
-                                               class = 'compact',
-                                               selection = 'none',
-                                               rownames = FALSE,
-                                               escape = FALSE,
-                                               options = list(dom = 't',ordering=F)
-                                            ) 
-                                          })
+      output$site_sample_table <- renderDataTable({datatable(as.data.frame(sample_data[sample_data$SAMPLE_ID == input$site_sample_select,][c(1,4:8)]),
+                                                               class = 'compact',
+                                                               selection = 'none',
+                                                               rownames = FALSE,
+                                                               escape = FALSE,
+                                                               options = list(dom = 't',ordering=F)
+      )
+      })
 
-output$site_clinc <- renderDataTable({datatable(testVAR[siteclinc_cols],
-                                                 class = 'compact',
-                                                 selection = 'none',
-                                                 rownames = FALSE,
-                                                 escape = FALSE,
-                                                 options = list(dom = 't',ordering=F)
-                                            ) 
+    
+      ## Transcript table
+      updateSelectInput(session, inputId = "site_transcript_select", choices = unlist(str_split(site_VAL$TRANSCRIPT,",")))
+      transcripts <- site_VAL[names(site_VAL) %in% c("TRANSCRIPT","EXON","DNA","AA")]
+      
+      if(length(str_split(transcripts$TRANSCRIPT,pattern = ",",simplify = T)) > 1){
+        transcripts <- as.data.frame(apply(transcripts,2,function(x) str_split(x,pattern = ",",simplify = T)))
+      }
+      
+
+      output$site_transcript_table <- renderDataTable({datatable(transcripts[transcripts$TRANSCRIPT == input$site_transcript_select,],
+                                                                   class = 'compact',
+                                                                   selection = 'none',
+                                                                   rownames = FALSE,
+                                                                   escape = FALSE,
+                                                                   options = list(dom = 't',ordering=F)
+      )
+      })
+
+      
+
+      data_af <- site_VAL
+      index_AF <- names(data_af[names(data_af) %in% siterarity_cols])
+      site_AF <- t(data_af[names(data_af) %in% siterarity_cols])
+      site_AF <- data.frame(index_AF,site_AF)
+      colnames(site_AF) <- c("Dataset","AF")
+      output$site_rarity_table <- renderDataTable({datatable(site_AF,
+                                                               selection = 'none',
+                                                               rownames = FALSE,
+                                                               escape = FALSE,
+                                                               options = list(dom = 't',ordering=F)
+      )
+      })
+
+      output$site_title <- renderText({paste(paste(gsub(pattern = "chr",x = site_VAL[2],replacement = ""),":",site_VAL[3],sep = ""),site_VAL[5], "/", site_VAL[6])})
+      output$site_hetv <- renderText({paste(site_VAL$HET_val," (",round(site_VAL$HET_rate,digits = 1),"%)",sep = "")})
+      output$site_homv <- renderText({paste(site_VAL$HOM_val," (",round(site_VAL$HOM_rate,digits = 1),"%)",sep = "")})
+      output$site_miss <- renderText({paste(site_VAL$MISS_rate,"%")})
+      
+      output$site_info <- renderDataTable({datatable(data.frame(Names=names(site_VAL[names(site_VAL) %in% sitreinfo_cols]),values=as.character(site_VAL[sitreinfo_cols])),
+                                            class = 'compact',
+                                            colnames = c("",""),
+                                            selection = 'none',
+                                            rownames = FALSE,
+                                            escape = FALSE,
+                                            options = list(dom = 't',ordering=F,
+                                                           initComplete = JS(
+                                                             "function(settings, json) {",
+                                                             "$(this.api().table().header()).css({'color': '#fff'});",
+                                                             "}")
+                                            )
+                                          ) %>% formatStyle(
+                                              'Names',
+                                              fontWeight = 'bold'
+                                            )
                                           })
-                                                 
+      
+      output$site_conseq <- renderDataTable({datatable(site_VAL[siteconseq_cols],
+                                                     class = 'compact',
+                                                     selection = 'none',
+                                                     rownames = FALSE,
+                                                     escape = FALSE,
+                                                     options = list(dom = 't',ordering=F)
+                                                  ) 
+                                                })
+      
+      output$site_clinc <- renderDataTable({datatable(site_VAL[siteclinc_cols],
+                                                       class = 'compact',
+                                                       selection = 'none',
+                                                       rownames = FALSE,
+                                                       escape = FALSE,
+                                                       options = list(dom = 't',ordering=F)
+                                                  ) 
+                                                })
+  }
+})                                                 
 
 #### Plot rendering ####
 
 ## SamplePage - Variant plots
 observe({
-  SampleVarJSON <- as.data.frame(table(data_sample()$CONSEQ))
-  colnames(SampleVarJSON) <- c("conseq","total")
-  SampleVarJSON <- toJSON(SampleVarJSON)
+  if(nrow(data_sample()) == 0){
+    SampleVarJSON <- data.frame(conseq=c("frameshift deletion","frameshift insertion","nonframeshift deletion","nonframeshift insertion","nonsynonymous","splicing","stopgain","stoploss","synonymous","unknown"),total=rep.int(0,10))
+    SampleVarJSON <- toJSON(SampleVarJSON)
+  } else {
+    SampleVarJSON <- as.data.frame(table(data_sample()$CONSEQ))
+    colnames(SampleVarJSON) <- c("conseq","total")
+    SampleVarJSON <- toJSON(SampleVarJSON)
+  }
   session$sendCustomMessage("SampleVarjson",SampleVarJSON)
 })
 
 observe({
-  sampleMut_plotJSON <- as.data.frame(table(paste(data_sample()$REF,data_sample()$ALT,sep = ">")))
-  sampleMut_plotJSON <- sampleMut_plotJSON[sampleMut_plotJSON$Var1 %in% mut_types,]
-  colnames(sampleMut_plotJSON) <- c("mutation","total")
-  sampleMut_plotJSON <- toJSON(sampleMut_plotJSON)
+  if(nrow(data_sample()) == 0){
+    sampleMut_plotJSON <- data.frame(mutation=mut_types,total=rep(0,12))
+    sampleMut_plotJSON <- toJSON(sampleMut_plotJSON)
+  } else {
+    sampleMut_plotJSON <- as.data.frame(table(paste(data_sample()$REF,data_sample()$ALT,sep = ">")))
+    sampleMut_plotJSON <- sampleMut_plotJSON[sampleMut_plotJSON$Var1 %in% mut_types,]
+    colnames(sampleMut_plotJSON) <- c("mutation","total")
+    sampleMut_plotJSON <- toJSON(sampleMut_plotJSON)
+  }
   session$sendCustomMessage("SampleMutjson",sampleMut_plotJSON)
 })
 
 observe({
-  K <- as.data.frame(table(cut(data_sample()$X1000G_all,seq.int(0,0.05,0.01),include.lowest = T)))
-  K <- c('1KG',as.numeric(K$Freq))
-  E <- as.data.frame(table(cut(data_sample()$ExAC_ALL,seq.int(0,0.05,0.01),include.lowest = T)))
-  E <- c('ExAC',as.numeric(E$Freq))
-  I <- as.data.frame(table(cut(data_sample()$INT_freq,seq.int(0,0.05,0.01),include.lowest = T)))
-  I <- c('Internal',as.numeric(I$Freq))
-  sampleRare_plotJSON <- toJSON(rbind(K,E,I))
-  
+  if(nrow(data_sample()) == 0){
+    K <- c('1KG',rep.int(0,5))
+    E <- c('ExAC',rep.int(0,5))
+    I <- c('Internal',rep.int(0,5))
+    sampleRare_plotJSON <- toJSON(rbind(K,E,I))
+  } else {
+    K <- as.data.frame(table(cut(data_sample()$X1000G_all,seq.int(0,0.05,0.01),include.lowest = T)))
+    K <- c('1KG',as.numeric(K$Freq))
+    E <- as.data.frame(table(cut(data_sample()$ExAC_ALL,seq.int(0,0.05,0.01),include.lowest = T)))
+    E <- c('ExAC',as.numeric(E$Freq))
+    I <- as.data.frame(table(cut(data_sample()$INT_freq,seq.int(0,0.05,0.01),include.lowest = T)))
+    I <- c('Internal',as.numeric(I$Freq))
+    sampleRare_plotJSON <- toJSON(rbind(K,E,I))
+  }
   session$sendCustomMessage("SampleRarejson",sampleRare_plotJSON)
 })
 
 #### Text rendering #### 
 
-output$id_cord <- renderText({paste("Search results for ", val_cord())})
+output$id_cord <- renderText({paste("Search results for ", cord_label())})
 output$id_sample <- renderText({paste(sample_data$SAMPLE_ID[sample_data$DATA_ID == val_sample()])}) ##prints header for table with search value
 output$id_gene <- renderText({label_gene()}) 
 output$sampleid_table <- renderText({paste("Non-reference samples in ",sample_data$SAMPLE_ID[sample_data$DATA_ID == val_sample()])})
+
 output$single_gene_panel_title <- renderText({unique(val_gene()$GENE)})
 output$single_gene_panel_desc <- renderText({as.character(gene_info$Gene.description[gene_info$Gene.name == unique(val_gene()$GENE)])})
-output$site_title <- renderText({paste(paste(gsub(pattern = "chr",x = testVAR[2],replacement = ""),":",testVAR[3],sep = ""),testVAR[5], "/", testVAR[6])})
-output$site_hetv <- renderText({paste(testVAR$HET_val," (",round(testVAR$HET_rate,digits = 1),"%)",sep = "")})
-output$site_homv <- renderText({paste(testVAR$HOM_val," (",round(testVAR$HOM_rate,digits = 1),"%)",sep = "")})
-output$site_miss <- renderText({paste(testVAR$MISS_rate,"%")})
 
 #### Save mechanism ####
 ## review save mechanisms
