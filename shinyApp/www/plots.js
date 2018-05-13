@@ -435,3 +435,46 @@ setTimeout(function () {
     })
   }, 0);
 })
+
+Shiny.addCustomMessageHandler("CohortMutjson",function(CohortMutjson){
+  
+  var mainDataset = CohortMutjson
+  
+  var chart9 = c3.generate({
+      bindto: '#plotCohortmut',
+      data: {
+          x: 'x',
+          columns: mainDataset,
+          type: 'bar'
+      },
+      color: {
+        pattern: ['#1f77b4', '#aec7e8', '#ff7f0e']
+      },
+      axis: {
+          x: {
+          type: 'category'
+              
+          }
+      }
+  });
+  
+  setTimeout(function () {
+    chart8.load({
+      bindto: '#plotCohortmut',
+      data: {
+          x: 'x',
+          columns: mainDataset,
+          type: 'bar'
+      },
+      color: {
+        pattern: ['#1f77b4', '#aec7e8', '#ff7f0e']
+      },
+      axis: {
+          x: {
+          type: 'category'
+              
+          }
+      }
+    })
+  },0);
+})
