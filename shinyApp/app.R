@@ -65,7 +65,7 @@ siteclinc_cols <- c("CLINVAR","DISEASE")
 
 siterarity_cols <- c("INT_freq","X1000_all","ExAC_ALL","ExAC_NFE")
 
-mut_types <- c("T>C","T>A","T>G","C>T","C>G","C>A","G>A","G>T","G>C","A>C","A>T","A>G")
+mut_types <- c("A>C","A>G","A>T","C>A","C>G","C>T","G>A","G>C","G>T","T>A","T>C","T>G")
 
 colfuncCADD <- colorRampPalette(c("chartreuse4","goldenrod2","orangered3"))
 
@@ -192,12 +192,11 @@ ui = fluidPage(theme = shinytheme("flatly"),
         ),
         fluidRow(
           column(12,
-                 column(4,style = "height: 400px",tags$div(id="plotPheno")),
+                 column(4,style = "height: 350px",tags$div(id="plotPheno")),
                  column(8,
                         bs_accordion(id = "splash_info") %>%
                           bs_set_opts(panel_type = "default", use_heading_link = TRUE) %>%
                           bs_append(title = "Features", content = tags$div(HTML("
-                  <p>The MedGen Data Portal (MGDP) is an intergrated platform for the viewing and querying of data filtered from the MedGen Exome Cohorts.</p>
                   <p>Provided tools:</P>
                   <ul>
                   <li>Variant browser</li>
@@ -212,7 +211,6 @@ ui = fluidPage(theme = shinytheme("flatly"),
                   </ul>
                   "))) %>%
                           bs_append(title = "Data generation", content = tags$div(HTML("
-                  <p>Data present in the MGVB is derivied from unfiltered multi-sample VCF files</p>
                   <p>Variants are filtered according to the following metrics:</P>
                   <ul>
                   <li>Read depth: ##</li>
@@ -228,6 +226,56 @@ ui = fluidPage(theme = shinytheme("flatly"),
                  )
           )
         ),
+#### Comparison tab ####
+      tabPanel(title = "Comparison", icon = icon("random"),
+               column(2,
+                 fluidRow(
+                   column(12,h4("Select comparison type:"),selectInput(inputId = "comp_analysis_type",label = NULL,choices = c("By Gene","By Position"),multiple = F,selected = "By Gene"))
+                 ),
+                 tags$hr(),
+                 div(id = "animation_comp_gene",conditionalPanel(condition = "input.comp_analysis_type == 'By Gene'",
+                                  fluidRow(
+                                    column(12,h4("Select Gene:"),selectizeInput(inputId = "compare_gene",label = NULL,choices = NULL),
+                                           actionButton(inputId = "comp_gene_submit",label = "Search",icon = icon("search"),width = "100%")
+                                           )
+                                  )
+                 )),
+                 div(id = "animation_comp_pos",conditionalPanel(condition = "input.comp_analysis_type == 'By Position'",
+                                  fluidRow(
+                                    column(12,h4("Enter rsID or genomic position:"),textInput(inputId = "compare_pos",label = NULL,placeholder = "Position or rsID"),
+                                    actionButton(inputId = "comp_pos_submit",label = "Search",icon = icon("search"),width = "100%")
+                                    )
+                                  )
+                 ))
+               ),
+               column(8,
+                      fluidRow(
+                        h6("Cohort statistics:"),
+                        column(width = 6, tags$div(id="plotCohortmut")),
+                        column(width = 6, h4("Placeholder"),tags$div(id="asdasfasd"))
+                      )
+               ),
+               tags$hr(),
+               tabsetPanel(id = "comp_tabs",
+                           tabPanel(title = "gene",value = "comp_gene_panel",
+                                    column(8,
+                                      fluidRow(
+                                        column(width = 12,uiOutput("comp_gene"),style = "font-size: 80%; width: 100%;")
+                                      )
+                                    ),
+                                    column(4,h4("placeholder")
+                                           )
+                           ),
+                           tabPanel(title = "pos", value = "comp_pos_panel",
+                                    column(8,
+                                      fluidRow(
+                                        column(width = 8,uiOutput("comp_pos"),style = "font-size: 80%; width: 100%;")
+                                      )
+                                    ),
+                                    column(4,h4("placeholder"))
+                           )
+               )    
+      ),
 #### Data selection panel ####
       tabPanel(title = "Browser", icon = icon("flask"),
        h4(tags$b("Variant Browser")),
@@ -596,12 +644,23 @@ session$sendCustomMessage("ethnojson",var_ethno_json)
 session$sendCustomMessage("pheno_barjson",var_pheno_json)
 session$sendCustomMessage("sexjson",var_sex_json)
 
-#### cohort selection & resetting ####
+#### Animations
 observe({
     toggle(id = "animation", anim = TRUE, animType = "fade",
-           time = 0.5, condition = input$cohort != "None")
+           time = 0.3, condition = input$cohort != "None")
 })
-  
+
+observe({
+  toggle(id = "animation_comp_gene", anim = TRUE, animType = "fade",
+         time = 0.3, condition = input$comp_analysis_type == "By Gene")
+})
+
+observe({
+  toggle(id = "animation_comp_pos", anim = TRUE, animType = "fade",
+         time = 0.3, condition = input$comp_analysis_type == "By Position")
+})
+
+#### cohort selection & resetting ####
 observe({
     if (input$cohort != "None") {
       shinyjs::disable("cohort")
@@ -681,6 +740,7 @@ observeEvent(input$reset, {
 })
 
 hide(id = "main_panel")
+hide(id = "comp_tabs")
 
 #### Panel switching & hiding ####
 
@@ -1303,6 +1363,178 @@ output$single_gene_panel_desc <- renderText({as.character(gene_info$Gene.descrip
 #       write.csv(x = data2_sample(), file, quote = FALSE, row.names = FALSE)
 #     }
 #   })
+
+#### Comparison server functions
+
+  ##Tab switch
+  observe({
+    if(input$comp_analysis_type == "By Gene"){updateTabsetPanel(session, "comp_tabs", selected = "comp_gene_panel")}
+    if(input$comp_analysis_type == "By Position"){updateTabsetPanel(session, "comp_tabs", selected = "comp_pos_panel")}
+  })
+  
+  ## Gene comparison 
+  max_table = length(variant_data)
+  
+  sub_data_gene <- eventReactive(input$comp_gene_submit,{
+    subset <- lapply(variant_data, function(x){
+      sub <- x[x$Gene.refGene == input$compare_gene,]
+      names(sub)[1:38] <- column_names
+      sub <- sub[colnames(sub) %in% main_table]
+      sub <- sub[main_table]
+      sub <- sub[!colnames(sub) %in% siteconseq_cols]
+      return(sub)
+    })
+    return(subset)
+  })
+  
+  observe({
+    updateSelectizeInput(session, 'compare_gene', 
+                         choices = unique(unlist(lapply(variant_data,function(x) unique(x$Gene.refGene)))), 
+                         server = TRUE,
+                         options = list(placeholder = 'Gene ID'))
+    
+    output$comp_gene <- renderUI({
+      table_output_list <- lapply(1:max_table, function(i) {
+        tablename <- paste("tablename", i, sep = "")
+        dataTableOutput(tablename)
+      })
+      title_output_list <- lapply(1:max_table, function(i) {
+        tabletitles <- paste("titlename",i,sep = "")
+        h4(textOutput(tabletitles))
+      })
+      elements <- do.call(tagList, c(table_output_list,title_output_list))
+      elements[c(rbind(seq.int(1+max_table,max_table*2,1),seq.int(1,max_table,1)))]
+    })
+    
+    for (i in 1:max_table) {
+      local({
+        my_i <- i
+        tablename <- paste("tablename", my_i, sep = "")
+        output[[tablename]] <- renderDataTable({
+          datatable(sub_data_gene()[[my_i]],rownames = FALSE,
+                    options = list(
+                      dom = 'tp',
+                      pageLength = 5,
+                      lengthMenu = c(10, 20, 50, 100),
+                      searchHighlight = TRUE))
+        })
+      })
+    }
+    
+    for (i in 1:max_table) {
+      local({
+        my_i <- i
+        titlename <- paste("titlename", my_i, sep = "")
+        output[[titlename]] <- renderText({
+          names(sub_data_gene())[my_i]
+          
+        })
+      })
+    }
+  })
+  
+  ## Position comparison
+  
+  val_sub_cord <- eventReactive(input$comp_pos_submit, {
+    shiny::validate(
+      need(grepl(pattern = "(^chr([XY]|[1-9]|1[0-9]|2[0-2])|([XY]|^[1-9]|^1[0-9]|^2[0-2])):[0-9]+|(^rs[0-9]+)", input$compare_pos),
+           message = "Please enter a valid chromosome position")
+      ## message passed if it looks weird or malformed e.g. contains letters
+    )
+    ##passes input value if no problem
+    return(input$compare_pos)
+  })
+  
+  sub_data_pos <- eventReactive(input$comp_pos_submit,{
+    subset <- lapply(variant_data, function(x){
+      
+      if(grepl("^rs", val_sub_cord()) == TRUE){
+        id <- val_sub_cord()
+        sub <- x[which(x$rsID == id),]
+      } else {
+        ##split the inputpos into its chr start and stop components
+        chr <- strsplit(val_sub_cord(), ":",fixed = TRUE)[[1]][1]
+        start1 <- strsplit(val_sub_cord(), ":",fixed = TRUE)[[1]][2]
+        ##if only start was provided - look for specific coord - if both start and stop - look up range of variants - start should be less than stop
+        sub <- x[x$CHROM == chr & x$POS == start1,]
+        ##report data back to function2:1-9999999999999999
+      }
+      names(sub)[1:38] <- column_names
+      sub <- sub[colnames(sub) %in% main_table]
+      sub <- sub[main_table]
+      sub <- sub[!colnames(sub) %in% siteconseq_cols]
+      return(sub)
+    })
+    return(subset)
+  })
+  
+  observe({
+    
+    output$comp_pos <- renderUI({
+      table_output_list <- lapply(1:max_table, function(i) {
+        tablename <- paste("tablenameP", i, sep = "")
+        dataTableOutput(tablename)
+      })
+      title_output_list <- lapply(1:max_table, function(i) {
+        tabletitles <- paste("titlenameP",i,sep = "")
+        h4(textOutput(tabletitles))
+      })
+      elements <- do.call(tagList, c(table_output_list,title_output_list))
+      elements[c(rbind(seq.int(1+max_table,max_table*2,1),seq.int(1,max_table,1)))]
+    })
+    
+    for (i in 1:max_table) {
+      local({
+        my_i <- i
+        tablename <- paste("tablenameP", my_i, sep = "")
+        output[[tablename]] <- renderDataTable({
+          datatable(sub_data_pos()[[my_i]],rownames = FALSE,
+                    options = list(
+                      dom = 'tp',
+                      pageLength = 5,
+                      lengthMenu = c(10, 20, 50, 100),
+                      searchHighlight = TRUE))
+        })
+      })
+    }
+    
+    for (i in 1:max_table) {
+      local({
+        my_i <- i
+        titlename <- paste("titlenameP", my_i, sep = "")
+        output[[titlename]] <- renderText({
+          names(sub_data_pos())[my_i]
+          
+        })
+      })
+    }
+  })
+  
+  observe({
+    cohort_mutations_JSON <- do.call(rbind,lapply(variant_data,function(x){
+      j <- as.data.frame(table(paste(x$REF,x$ALT,sep = ">")))
+      j <- j[j$Var1 %in% mut_types,]
+      j <- t(j[2])
+    }))
+    cohort_mutations_JSON <- as.data.frame(cohort_mutations_JSON,row.names = length(cohort_mutations_JSON))
+    cohort_mutations_JSON <- rbind(as.character(mut_types),cohort_mutations_JSON)
+    cohort_mutations_JSON <- cbind(c("x",names(variant_data)),cohort_mutations_JSON)
+    cohort_mutations_JSON <- toJSON(cohort_mutations_JSON,dataframe = 'values')
+    
+    session$sendCustomMessage("CohortMutjson",cohort_mutations_JSON)
+  })
+  
+  # observe({
+  #   cohort_mutations_JSON <- lapply(variant_data,function(x){
+  #     j <- as.data.frame(table(x$ExonicFunc.refGene))
+  #   })
+  #   # cohort_mutations_JSON <- as.data.frame(cohort_mutations_JSON,row.names = length(cohort_mutations_JSON))
+  #   # cohort_mutations_JSON <- rbind(as.character(mut_types),cohort_mutations_JSON)
+  #   # cohort_mutations_JSON <- cbind(c("x",names(variant_data)),cohort_mutations_JSON)
+  #   # cohort_mutations_JSON <- toJSON(cohort_mutations_JSON,dataframe = 'values')
+  #   
+  #   session$sendCustomMessage("CohortMutjson",cohort_mutations_JSON)
+  # })
 
 #### Server END
 }
