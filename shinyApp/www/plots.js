@@ -225,6 +225,9 @@ Shiny.addCustomMessageHandler("SampleVarjson",function(SampleVarPlot){
             ratio: 0.7 
         }
     },
+    size: {
+        width: 490
+    },
     axis: {
       rotated: true,
             x: {
@@ -245,45 +248,6 @@ Shiny.addCustomMessageHandler("SampleVarjson",function(SampleVarPlot){
       }
     }
   });
-  setTimeout(function () {
-    chart6.load({
-      data: {
-        type: 'bar',
-        json: mainDataset,
-        keys: {
-            x: 'conseq',
-            value: ['total']
-        }
-    },
-    color: {
-        pattern: ['#3182bd']
-    },
-    bar: {
-      width: {
-            ratio: 0.7 
-        }
-    },
-    axis: {
-      rotated: true,
-            x: {
-                show: true,
-                type: 'category'
-            },
-            y: {
-              label: 'Frequency'
-            }
-    },
-    legend: {
-      show: false,
-      position: 'right'
-    },
-    grid: {
-      y: {
-        show: true
-      }
-    }
-    })
-  }, 0);
 })
 
 Shiny.addCustomMessageHandler("SampleMutjson",function(SampleMutPlot){
@@ -303,6 +267,9 @@ Shiny.addCustomMessageHandler("SampleMutjson",function(SampleMutPlot){
     color: {
         pattern: ['#9ecae1']
     },
+    size: {
+        width: 490
+    },
     bar: {
       width: {
             ratio: 0.7 
@@ -327,44 +294,6 @@ Shiny.addCustomMessageHandler("SampleMutjson",function(SampleMutPlot){
       }
     }
   });
-  setTimeout(function () {
-    chart7.load({
-        data: {
-        type: 'bar',
-        json: mainDataset,
-        keys: {
-            x: 'mutation',
-            value: ['total']
-        }
-    },
-    color: {
-        pattern: ['#9ecae1']
-    },
-    bar: {
-      width: {
-            ratio: 0.7 
-        }
-    },
-    axis: {
-            x: {
-                show: true,
-                type: 'category'
-            },
-            y: {
-              label: 'Frequency'
-            }
-    },
-    legend: {
-      show: false,
-      position: 'right'
-    },
-    grid: {
-      y: {
-        show: true
-      }
-    }
-    })
-  }, 0);
 })
 
 Shiny.addCustomMessageHandler("SampleRarejson",function(SampleRarePlot){
@@ -382,36 +311,8 @@ Shiny.addCustomMessageHandler("SampleRarejson",function(SampleRarePlot){
           columns: mainDataset,
           type: 'area-spline'
       },
-      color: {
-        pattern: ['#1f77b4', '#aec7e8', '#ff7f0e']
-      },
-      axis: {
-          x: {
-          type: 'indexed',
-              tick: {
-                  fit: true,
-                  format: function (x) { return labels[x];
-                  }
-              }
-          }
-      },
-      legend: {
-        position: 'inset',
-        inset: {
-          anchor: 'top-right'
-        }
-      }
-});
-
-setTimeout(function () {
-  chart8.load({
-      bindto: '#plotSampleRare',
-      padding: {
-        right: 20,
-      },
-      data: {
-          columns: mainDataset,
-          type: 'area-spline'
+      size: {
+        width: 490
       },
       color: {
         pattern: ['#1f77b4', '#aec7e8', '#ff7f0e']
@@ -432,8 +333,7 @@ setTimeout(function () {
           anchor: 'top-right'
         }
       }
-    })
-  }, 0);
+  });
 })
 
 Shiny.addCustomMessageHandler("CohortMutjson",function(CohortMutjson){
@@ -450,21 +350,39 @@ Shiny.addCustomMessageHandler("CohortMutjson",function(CohortMutjson){
       color: {
         pattern: ['#1f77b4', '#aec7e8', '#ff7f0e']
       },
+      size: {
+        width: 476
+      },
+      bar: {
+      width: {
+            ratio: 0.9 
+        }
+      },
       axis: {
           x: {
           type: 'category'
-              
-          }
+          },
+          y: {
+            label: 'Mutations / Sample'
+        },
       }
   });
+
+})
+
+Shiny.addCustomMessageHandler("CohortTsTvjson",function(CohortTsTvjson){
   
-  setTimeout(function () {
-    chart8.load({
-      bindto: '#plotCohortmut',
+  var mainDataset = CohortTsTvjson
+  
+  var chart10 = c3.generate({
+      bindto: '#plotCohortTstv',
       data: {
           x: 'x',
           columns: mainDataset,
-          type: 'bar'
+          type: 'spline'
+      },
+      size: {
+        width: 476
       },
       color: {
         pattern: ['#1f77b4', '#aec7e8', '#ff7f0e']
@@ -475,6 +393,5 @@ Shiny.addCustomMessageHandler("CohortMutjson",function(CohortMutjson){
               
           }
       }
-    })
-  },0);
+  });
 })

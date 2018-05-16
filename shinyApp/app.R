@@ -14,6 +14,8 @@ library(bsplus)
 library(stringr)
 library(markdown)
 
+## SHINY APP - VARIANT BROWSER - ALPHA 1.0
+
 ## TO FIX! 
 
 ## Fix intronic filtering
@@ -66,6 +68,10 @@ siteclinc_cols <- c("CLINVAR","DISEASE")
 siterarity_cols <- c("INT_freq","X1000_all","ExAC_ALL","ExAC_NFE")
 
 mut_types <- c("A>C","A>G","A>T","C>A","C>G","C>T","G>A","G>C","G>T","T>A","T>C","T>G")
+
+transitions <- c("A>G","C>T","G>A","T>C")
+
+transversions <- c("A>C","A>T","C>A","G>C","G>T","C>G","T>A","T>G")
 
 colfuncCADD <- colorRampPalette(c("chartreuse4","goldenrod2","orangered3"))
 
@@ -149,7 +155,7 @@ ui = fluidPage(theme = shinytheme("flatly"),
       tags$link(rel = "stylesheet", type = "text/css", href = "style.css")
       ),
 
-      navbarPage(title = "MedGenDP", collapsible = TRUE,position = "fixed-top",
+      navbarPage(title = "Medical Genetics", collapsible = TRUE,position = "fixed-top",
 #### Data Summary panel ####
         tabPanel(title = "Data summary", icon = icon("table"),
         fluidRow(
@@ -226,56 +232,6 @@ ui = fluidPage(theme = shinytheme("flatly"),
                  )
           )
         ),
-#### Comparison tab ####
-      tabPanel(title = "Comparison", icon = icon("random"),
-               column(2,
-                 fluidRow(
-                   column(12,h4("Select comparison type:"),selectInput(inputId = "comp_analysis_type",label = NULL,choices = c("By Gene","By Position"),multiple = F,selected = "By Gene"))
-                 ),
-                 tags$hr(),
-                 div(id = "animation_comp_gene",conditionalPanel(condition = "input.comp_analysis_type == 'By Gene'",
-                                  fluidRow(
-                                    column(12,h4("Select Gene:"),selectizeInput(inputId = "compare_gene",label = NULL,choices = NULL),
-                                           actionButton(inputId = "comp_gene_submit",label = "Search",icon = icon("search"),width = "100%")
-                                           )
-                                  )
-                 )),
-                 div(id = "animation_comp_pos",conditionalPanel(condition = "input.comp_analysis_type == 'By Position'",
-                                  fluidRow(
-                                    column(12,h4("Enter rsID or genomic position:"),textInput(inputId = "compare_pos",label = NULL,placeholder = "Position or rsID"),
-                                    actionButton(inputId = "comp_pos_submit",label = "Search",icon = icon("search"),width = "100%")
-                                    )
-                                  )
-                 ))
-               ),
-               column(8,
-                      fluidRow(
-                        h6("Cohort statistics:"),
-                        column(width = 6, tags$div(id="plotCohortmut")),
-                        column(width = 6, h4("Placeholder"),tags$div(id="asdasfasd"))
-                      )
-               ),
-               tags$hr(),
-               tabsetPanel(id = "comp_tabs",
-                           tabPanel(title = "gene",value = "comp_gene_panel",
-                                    column(8,
-                                      fluidRow(
-                                        column(width = 12,uiOutput("comp_gene"),style = "font-size: 80%; width: 100%;")
-                                      )
-                                    ),
-                                    column(4,h4("placeholder")
-                                           )
-                           ),
-                           tabPanel(title = "pos", value = "comp_pos_panel",
-                                    column(8,
-                                      fluidRow(
-                                        column(width = 8,uiOutput("comp_pos"),style = "font-size: 80%; width: 100%;")
-                                      )
-                                    ),
-                                    column(4,h4("placeholder"))
-                           )
-               )    
-      ),
 #### Data selection panel ####
       tabPanel(title = "Browser", icon = icon("flask"),
        h4(tags$b("Variant Browser")),
@@ -616,6 +572,72 @@ ui = fluidPage(theme = shinytheme("flatly"),
               #   )
             )
         ),
+#### Comparison tab ####
+        tabPanel(title = "Comparison", icon = icon("random"),
+         column(2,
+                fluidRow(
+                  column(12,h4("Select comparison type:"),
+                         selectInput(inputId = "comp_analysis_type",label = NULL,choices = c("By Gene","By Position"),multiple = F,selected = "By Gene"),
+                         h6(tags$em("N.B - Only first transcript information shown"), style = "text-align: center; margin: 0px;")
+                  )
+                ),
+                tags$hr(),
+                div(id = "animation_comp_gene",conditionalPanel(condition = "input.comp_analysis_type == 'By Gene'",
+                                                                fluidRow(
+                                                                  column(12,h4("Select Gene:"),selectizeInput(inputId = "compare_gene",label = NULL,choices = NULL),
+                                                                         actionButton(inputId = "comp_gene_submit",label = "Search",icon = icon("search"),width = "100%")
+                                                                  )
+                                                                )
+                )),
+                div(id = "animation_comp_pos",conditionalPanel(condition = "input.comp_analysis_type == 'By Position'",
+                                                               fluidRow(
+                                                                 column(12,h4("Enter rsID or genomic position:"),textInput(inputId = "compare_pos",label = NULL,placeholder = "Position or rsID"),
+                                                                        actionButton(inputId = "comp_pos_submit",label = "Search",icon = icon("search"),width = "100%")
+                                                                 )
+                                                               )
+                ))
+         ),
+         column(10,
+                h6("Cohort statistics:"),
+                column(width = 4, tags$div(id="plotCohortmut")),
+                column(width = 4, tags$div(id="plotCohortTstv")),
+                column(width = 4, tags$div(id=""))
+         ),
+         tabsetPanel(id = "comp_tabs",
+                     
+                     tabPanel(title = "gene",value = "comp_gene_panel",
+                              fluidRow(
+                                hr(),
+                                column(12,
+                                       h4("Summary:"),
+                                       h4("Some more text")
+                                )
+                              ),
+                              column(8,
+                                     fluidRow(
+                                       column(width = 12,uiOutput("comp_gene"),style = "font-size: 80%; width: 100%;")
+                                     )
+                              ),
+                              column(4,h4("placeholder")
+                              )
+                     ),
+                     tabPanel(title = "pos", value = "comp_pos_panel",
+                              fluidRow(
+                                tags$hr(),
+                                column(12,
+                                       h4("Summary:")
+                                ),
+                                tags$hr()
+                              ),
+                              column(8,
+                                     fluidRow(
+                                       column(width = 8,uiOutput("comp_pos"),style = "font-size: 80%; width: 100%;")
+                                     )
+                              ),
+                              column(4,h4("placeholder"))
+                     )
+         )    
+        ),
 #### Other databases tab ####
         tabPanel(title = "Other Databases", icon = icon("database"),
                  h4("MedGen Database repository"),
@@ -636,6 +658,25 @@ ui = fluidPage(theme = shinytheme("flatly"),
 #### SERVER START #### 
 server = function(input, output, session){
 
+#### TEMP MODEL
+
+shinyalert(title = "<h4>v0.1 - alpha build</h4>",
+           type = "warning",
+           text = "<h5>----------------------------------------------------------</h5>
+                   <h5><b>- </b>Web app is still in development</h5>
+                   <h5><b>- </b>There will be weird bugs and errors</h5>
+                   <h5><b>- </b>It will <b>definitely</b> break</h5>
+                   <h5>----------------------------------------------------------</h5>
+                   <h5><b>Please inform me when, how, and what breaks!</b></h5>",
+           html = T,
+           closeOnEsc = T,
+           closeOnClickOutside = T,
+           confirmButtonText = "OK",
+           confirmButtonCol = "#3182bd",
+           animation = T,
+           timer = 15000
+           )
+  
 #### Json main page - cohort graphs ####
   
 session$sendCustomMessage("cohortjson",var_cohort_json)
@@ -1379,6 +1420,12 @@ output$single_gene_panel_desc <- renderText({as.character(gene_info$Gene.descrip
     subset <- lapply(variant_data, function(x){
       sub <- x[x$Gene.refGene == input$compare_gene,]
       names(sub)[1:38] <- column_names
+      
+      # sub$TRANSCRIPT <- str_split(sub$TRANSCRIPT,",",simplify = T)[1]
+      # sub$EXON <- str_split(sub$EXON,",",simplify = T)[1]
+      # sub$DNA <- str_split(sub$DNA,",",simplify = T)[1]
+      # sub$AA <- str_split(sub$AA,",",simplify = T)[1]
+      
       sub <- sub[colnames(sub) %in% main_table]
       sub <- sub[main_table]
       sub <- sub[!colnames(sub) %in% siteconseq_cols]
@@ -1460,6 +1507,12 @@ output$single_gene_panel_desc <- renderText({as.character(gene_info$Gene.descrip
         ##report data back to function2:1-9999999999999999
       }
       names(sub)[1:38] <- column_names
+      
+      # sub$TRANSCRIPT <- str_split(sub$TRANSCRIPT,",",simplify = T)[1]
+      # sub$EXON <- str_split(sub$EXON,",",simplify = T)[1]
+      # sub$DNA <- str_split(sub$DNA,",",simplify = T)[1]
+      # sub$AA <- str_split(sub$AA,",",simplify = T)[1]
+      
       sub <- sub[colnames(sub) %in% main_table]
       sub <- sub[main_table]
       sub <- sub[!colnames(sub) %in% siteconseq_cols]
@@ -1514,7 +1567,7 @@ output$single_gene_panel_desc <- renderText({as.character(gene_info$Gene.descrip
     cohort_mutations_JSON <- do.call(rbind,lapply(variant_data,function(x){
       j <- as.data.frame(table(paste(x$REF,x$ALT,sep = ">")))
       j <- j[j$Var1 %in% mut_types,]
-      j <- t(j[2])
+      j <- t(signif(j[2]/length(names(x[39:ncol(x)])),digits = 2))
     }))
     cohort_mutations_JSON <- as.data.frame(cohort_mutations_JSON,row.names = length(cohort_mutations_JSON))
     cohort_mutations_JSON <- rbind(as.character(mut_types),cohort_mutations_JSON)
@@ -1524,17 +1577,23 @@ output$single_gene_panel_desc <- renderText({as.character(gene_info$Gene.descrip
     session$sendCustomMessage("CohortMutjson",cohort_mutations_JSON)
   })
   
-  # observe({
-  #   cohort_mutations_JSON <- lapply(variant_data,function(x){
-  #     j <- as.data.frame(table(x$ExonicFunc.refGene))
-  #   })
-  #   # cohort_mutations_JSON <- as.data.frame(cohort_mutations_JSON,row.names = length(cohort_mutations_JSON))
-  #   # cohort_mutations_JSON <- rbind(as.character(mut_types),cohort_mutations_JSON)
-  #   # cohort_mutations_JSON <- cbind(c("x",names(variant_data)),cohort_mutations_JSON)
-  #   # cohort_mutations_JSON <- toJSON(cohort_mutations_JSON,dataframe = 'values')
-  #   
-  #   session$sendCustomMessage("CohortMutjson",cohort_mutations_JSON)
-  # })
+  observe({
+    cohort_tstv_JSON <- do.call(rbind,lapply(variant_data, function(x){
+      tstv <- numeric()
+      for(i in seq.int(30,120,10)){
+        a <- as.data.frame(table(paste(x$REF[x$QUAL >= i],x$ALT[x$QUAL >= i],sep = ">")))
+        a <- a[a$Var1 %in% mut_types,]
+        tstv <- append(tstv,signif(sum(a$Freq[a$Var1 %in% transitions]) / sum(a$Freq[a$Var1 %in% transversions]),digits = 3))
+      }
+      return(tstv)
+    }))
+    cohort_tstv_JSON <- as.data.frame(cohort_tstv_JSON,row.names = length(cohort_tstv_JSON))
+    cohort_tstv_JSON <- rbind(seq.int(30,120,10),cohort_tstv_JSON)
+    cohort_tstv_JSON <- cbind(c("x",names(variant_data)),cohort_tstv_JSON)
+    cohort_tstv_JSON <- toJSON(cohort_tstv_JSON,dataframe = 'values')
+
+    session$sendCustomMessage("CohortTsTvjson",cohort_tstv_JSON)
+  })
 
 #### Server END
 }
