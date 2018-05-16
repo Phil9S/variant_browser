@@ -39,4 +39,11 @@
   height: 340px;
 }
 
+hr {
+    border: 0;
+    height: 1px;
+    background: #d6d6d6;
+    background-image: linear-gradient(to right, #e0e0e0, #d6d6d6, #e0e0e0);
+}
+
 </style>
