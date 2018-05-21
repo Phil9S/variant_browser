@@ -16,56 +16,56 @@ library(markdown)
 
 ## SHINY APP - VARIANT BROWSER - ALPHA 1.0
 
-## TO FIX! 
+## TO FIX!
 
-## Fix intronic filtering
+## Rename G1KG column
+
+## External database links fail if table length = 0
+## Gene-specific page and gene search page alternate when searching for the same, reflitering or searching for a new gene
 ## Session hang on empty tables
 ## gene fields with comma seperated entries
-## remove cosmic fields - likely not useful
 ## colour schemes!!
-## NA -> N/a for some columns like rsID
 ## site info row names out of order
-## add aggregated frequencies to gene page
 ## Data undefined on donut plots - custom tooltips
 ## Warning in gene_info$Gene.name == unique(val_gene()$GENE) :longer object length is not a multiple of shorter object length - GENE SEARCH ERROR
 ## fix gene description printing on single gene page
 ## HET OR HOM CALL FOR SAMPLE CALLS - Add column?
 ## single gene panel reliant on genelinks() data containing values after filtering
-## add additional rarites for exac and 1kg
-## shorten nonframeshifting / frameshifting -> nFS / FS
 ## support for comma-sv in clinvar/cosmic table on site panel - add drop down?
-## Fix all NA issue with AA column by replacing NA with "N/A"
-## Fix ".,." characters in annotation columns in data generation
+## missing/empty value handling for plots - if no fs for exmaple, then data is misaligned in json
+## Restore CADD to be numeric value with NA not N/a
+## Filtering and including intronic makes the sample-AF plot render below 0
+## Transcript table renders as empty if data is missing?
 
 ## Links in table https://github.com/rstudio/DT/issues/58
 
 #### External data ####
 #variant_data <- read.table(file = "test_variant_data.txt", header = TRUE, sep = "\t")
-load("www/2018-04-11-db_cohort_data.RData")
+load("www/2018-05-21-db_cohort_data.RData")
 variant_data <- cohort_list
 rm(cohort_list)
-sample_data <- read.table(file = "www/2018-04-11-db_sample_data.txt", header = TRUE, sep = "\t")
+sample_data <- read.table(file = "www/2018-05-21-db_sample_data.txt", header = TRUE, sep = "\t")
 gene_data <- read.table(file = "www/gene_ids_reference.tsv", header = TRUE, sep = "\t",stringsAsFactors = F)
 gene_info <- read.table(file = "www/gene_info_formatted.tsv", header = TRUE, sep = "\t",quote = "",stringsAsFactors = F)
 
 #### external non-session server functions and varibales ####
-
-column_names <- c("Id","CHR","POS","rsID","REF","ALT","QUAL","Func","GENE","CONSEQ","X1000G_all",
-                  "ExAC_ALL","ExAC_NFE","HET_val","HOM_val","HET_rate","HOM_rate","MISS_rate",
-                  "INT_freq","AggAF_Trunc","AggAF_nsyn","SIFT","POLYP","POLYP_VAR","LRT",
-                  "MUT_TASTER","MUT_ASSESSOR","FATHMM","PROVEAN","CADD","TRANSCRIPT","EXON","DNA",
-                  "AA","CLINVAR","DISEASE","COSMIC_ID","COSMIC_COUNTS")
+# 
+# column_names <- c("Id","CHR","POS","rsID","REF","ALT","QUAL","Func","GENE","CONSEQ","X1000G_all",
+#                   "ExAC_ALL","ExAC_NFE","HET_val","HOM_val","HET_rate","HOM_rate","MISS_rate",
+#                   "INT_freq","AggAF_Trunc","AggAF_nsyn","SIFT","POLYP","POLYP_VAR","LRT",
+#                   "MUT_TASTER","MUT_ASSESSOR","FATHMM","PROVEAN","CADD","TRANSCRIPT","EXON","DNA",
+#                   "AA","CLINVAR","DISEASE","COSMIC_ID","COSMIC_COUNTS")
 
 main_table <- c("CHR","POS","rsID","REF","ALT","GENE","CONSEQ","TRANSCRIPT","EXON","DNA",
-                "AA","X1000G_all","ExAC_ALL","INT_freq","MISS_rate","SIFT","POLYP","CADD")
+                "AA","G1KG_all","ExAC_ALL","INT_freq","MISS_rate","SIFT","POLYP","CADD","MEAN_RD")
 
-sitreinfo_cols <- c("rsID","REF","ALT","QUAL","Func","GENE","CONSEQ")
+sitreinfo_cols <- c("rsID","REF","ALT","QUAL","FUNC","GENE","CONSEQ","MEAN_RD")
 
 siteconseq_cols <- c("SIFT","POLYP","POLYP_VAR","LRT","MUT_TASTER","MUT_ASSESSOR","FATHMM","PROVEAN","CADD")
 
 siteclinc_cols <- c("CLINVAR","DISEASE")
 
-siterarity_cols <- c("INT_freq","X1000_all","ExAC_ALL","ExAC_NFE")
+siterarity_cols <- c("INT_freq","G1KG_all","ExAC_ALL","ExAC_NFE","ExAC_FIN","ExAC_AFR","ExAC_AMR","ExAC_EAS","ExAC_OTH","ExAC_SAS")
 
 mut_types <- c("A>C","A>G","A>T","C>A","C>G","C>T","G>A","G>C","G>T","T>A","T>C","T>G")
 
@@ -132,7 +132,7 @@ var_pheno_json <- toJSON(sample_phenoJSON)
 ## Main page plot JSON
 var_counts <- data.frame(samples=vector(),vars=vector(),cohort=vector())
 for(i in 2:length(variant_data)){
-var_counts_sample <- apply(variant_data[[i]][39:ncol(variant_data[[i]])],2,function(x) length(x[x == 1 | x == 2]))
+var_counts_sample <- apply(variant_data[[i]][42:ncol(variant_data[[i]])],2,function(x) length(x[x == 1 | x == 2]))
 var_counts <- rbind.data.frame(var_counts,data.frame(samples=c(names(var_counts_sample)),
                                                   variants=c(as.numeric(var_counts_sample)),
                                                   cohort=rep_len(names(variant_data[i]),length.out = length(var_counts_sample)),stringsAsFactors = F))
@@ -177,7 +177,7 @@ ui = fluidPage(theme = shinytheme("flatly"),
                  ),
                  fluidRow(
                    column(6,style = "text-align: center",h4("Phenotypes"),tags$b(formatC(length(unique(sample_data$PHENOTYPE)),format="d", big.mark=","))),
-                   column(6,style = "text-align: center",h4("Genes"),tags$b(formatC(length(unique(unlist(sapply(variant_data,function(x) unique(x$Gene.refGene))))),format="d", big.mark=",")))
+                   column(6,style = "text-align: center",h4("Genes"),tags$b(formatC(length(unique(unlist(sapply(variant_data,function(x) unique(x$GENE))))),format="d", big.mark=",")))
                  )
                 ),
           column(width = 10,
@@ -505,7 +505,7 @@ ui = fluidPage(theme = shinytheme("flatly"),
                           tags$hr(),
                           fluidRow(
                             column(12,
-                                   h4("Clinvar & Cosmic")
+                                   h4("Clinvar")
                             )
                           ),
                           wellPanel(
@@ -819,40 +819,37 @@ hide(id = "comp_tabs")
           ##if only start was provided - look for specific coord - if both start and stop - look up range of variants - start should be less than stop
           
           if(is.na(stop1)){
-            datC <- datC[datC$CHROM == chr & datC$POS == start1,]
+            datC <- datC[datC$CHR == chr & datC$POS == start1,]
             ##report data back to function2:1-9999999999999999
           } else {
-            datC <- datC[datC$CHROM == chr 
+            datC <- datC[datC$CHR == chr 
                   & as.numeric(datC$POS) >= as.numeric(start1)
                   & as.numeric(datC$POS) <= as.numeric(stop1),]
           }
       }
       
-      datC <- datC[datC$X1000g2015aug_all <= input$X1000G_rarity_pos & datC$ExAC_ALL <= input$Exac_rarity_pos,]
+      datC <- datC[datC$G1KG_all <= input$X1000G_rarity_pos & datC$ExAC_ALL <= input$Exac_rarity_pos,]
       
       ########### INTRONIC   
       if(input$intron_cord_pos == FALSE){
-      datC <- datC[!is.na(datC$ExonicFunc.refGene),]
+      datC <- datC[which(datC$CONSEQ != "intronic"),]
       }
     
       if(input$syn_cord_pos == FALSE){
-        datC <- datC[which(datC$ExonicFunc.refGene != "synonymous"),]
+        datC <- datC[which(datC$CONSEQ != "synonymous"),]
       }
       if(input$trunc_cord_pos == TRUE){
-        datC <- datC[datC$ExonicFunc.refGene == "stopgain" 
-                     | datC$ExonicFunc.refGene == "frameshift deletion"
-                     | datC$ExonicFunc.refGene == "frameshift insertion"
-                     | datC$ExonicFunc.refGene == "stoploss",]
+        datC <- datC[datC$CONSEQ == "stopgain" 
+                     | datC$CONSEQ == "frameshift deletion"
+                     | datC$CONSEQ == "frameshift insertion"
+                     | datC$CONSEQ == "stoploss",]
       }
       if(input$splice_cord_pos == TRUE){
-        datC <- datC[datC$ExonicFunc.refGene == "splicing",]
+        datC <- datC[datC$CONSEQ == "splicing",]
       }
     ##report table to render function
-      names(datC)[1:38] <- column_names
       datC <- datC[colnames(datC) %in% main_table]
       datC <- datC[main_table]
-      ## REMOVE AFTER FIXED IN PREPROCESS SCRIPT
-      datC$AA[is.na(datC$AA)] <- "NA"
     ##report data back to function
       if(nrow(datC) == 1){
         if(input$main_panel != "site_panel"){updateTabsetPanel(session, "main_panel", selected = "site_panel")}
@@ -880,7 +877,7 @@ hide(id = "comp_tabs")
       gene_list <- toupper(gene_list)
       datG <- variant_data[[which(names(variant_data) == input$cohort)]]
       if(length(gene_list) >= 2){
-        no_list <- gene_list[!gene_list %in% datG$Gene.refGene]
+        no_list <- gene_list[!gene_list %in% datG$GENE]
         if(length(no_list) > 0){
           shinyalert(
             title = "Gene symbols missing:",
@@ -900,39 +897,36 @@ hide(id = "comp_tabs")
             updateTextInput(session,"gene",value = gene_list[!gene_list %in% no_list])
           }
         gene_list <- gene_list[gene_list %in% datG$Gene.refGene]
-        datG <- datG[datG$Gene.refGene %in% gene_list,]
+        datG <- datG[datG$GENE %in% gene_list,]
         updatePrettyCheckbox(session,inputId = "gene_wildcard",value = FALSE)
       } else if(input$gene_wildcard == FALSE) {
-        datG <- datG[grep(gene_list,datG$Gene.refGene),]
+        datG <- datG[grep(gene_list,datG$GENE),]
       } else {
-        datG <- datG[datG$Gene.refGene == gene_list,]
+        datG <- datG[datG$GENE == gene_list,]
         if(input$main_panel != "single_gene_panel"){updateTabsetPanel(session, "main_panel", selected = "single_gene_panel")}
       }
       
-      datG <- datG[datG$X1000g2015aug_all <= input$X1000G_rarity_gene & datG$ExAC_ALL <= input$Exac_rarity_gene,]
+      datG <- datG[datG$G1KG_all <= input$X1000G_rarity_gene & datG$ExAC_ALL <= input$Exac_rarity_gene,]
       ########### INTRONIC   
       if(input$intron_cord_gene == FALSE){
-        datG <- datG[!is.na(datG$ExonicFunc.refGene),]
+        datG <- datG[which(datG$CONSEQ != "intronic"),]
       }
       
       if(input$syn_cord_gene == FALSE){
-        datG <- datG[datG$ExonicFunc.refGene != "synonymous",]
+        datG <- datG[datG$CONSEQ != "synonymous",]
       }
       if(input$trunc_cord_gene == TRUE){
-        datG <- datG[datG$ExonicFunc.refGene == "stopgain" 
-                     | datG$ExonicFunc.refGene == "frameshift deletion"
-                     | datG$ExonicFunc.refGene == "frameshift insertion"
-                     | datG$ExonicFunc.refGene == "stoploss",]
+        datG <- datG[datG$CONSEQ == "stopgain" 
+                     | datG$CONSEQ == "frameshift deletion"
+                     | datG$CONSEQ == "frameshift insertion"
+                     | datG$CONSEQ == "stoploss",]
       }
       if(input$splice_cord_gene == TRUE){
-        datG <- datG[datG$ExonicFunc.refGene == "splicing",]
+        datG <- datG[datG$CONSEQ == "splicing",]
       }
       ##report table to render function
-      names(datG)[1:38] <- column_names
       datG <- datG[colnames(datG) %in% main_table]
       datG <- datG[main_table]
-      ## REMOVE AFTER FIXED IN PREPROCESS SCRIPT
-      datG$AA[is.na(datG$AA)] <- "NA"
       return(datG)
   })
 
@@ -963,31 +957,28 @@ hide(id = "comp_tabs")
     ##filter table for input sample
     datS <- datS[datS[,val_sample()] == 1 | datS[,val_sample()] == 2 ,]
     
-    datS <- datS[datS$X1000g2015aug_all <= input$X1000G_rarity_sample & datS$ExAC_ALL <= input$Exac_rarity_sample,]
+    datS <- datS[datS$G1KG_all <= input$X1000G_rarity_sample & datS$ExAC_ALL <= input$Exac_rarity_sample,]
     ########### INTRONIC   
     if(input$intron_cord_sample == FALSE){
-      datS <- datS[!is.na(datS$ExonicFunc.refGene),]
+      datS <- datS[which(datS$CONSEQ != "intronic"),]
     }
     
     if(input$syn_cord_sample == FALSE){
-      datS <- datS[datS$ExonicFunc.refGene != "synonymous",]
+      datS <- datS[datS$CONSEQ != "synonymous",]
     }
     if(input$trunc_cord_sample == TRUE){
-      datS <- datS[datS$ExonicFunc.refGene == "stopgain" 
-                   | datS$ExonicFunc.refGene == "frameshift deletion"
-                   | datS$ExonicFunc.refGene == "frameshift insertion"
-                   | datS$ExonicFunc.refGene == "stoploss",]
+      datS <- datS[datS$CONSEQ == "stopgain" 
+                   | datS$CONSEQ == "frameshift deletion"
+                   | datS$CONSEQ == "frameshift insertion"
+                   | datS$CONSEQ == "stoploss",]
     }
     if(input$splice_cord_sample == TRUE){
-      datS <- datS[datS$ExonicFunc.refGene == "splicing",]
+      datS <- datS[datS$CONSEQ == "splicing",]
     }
   
     ##report table to render function
-    names(datS)[1:38] <- column_names
     datS <- datS[colnames(datS) %in% main_table]
     datS <- datS[main_table]
-    ## REMOVE AFTER FIXED IN PREPROCESS SCRIPT
-    datS$AA[is.na(datS$AA)] <- "NA"
     ##report table to render function
     return(datS)
   })
@@ -1025,10 +1016,10 @@ output$table_cord <- renderDataTable({
         )
       )
     ) %>% 
-    formatStyle('CADD',
-                color = styleInterval(seq.int(1,max(data_cord()$CADD,na.rm = TRUE),1),colfuncCADD(max(seq.int(1,max(data_cord()$CADD,na.rm = TRUE)+1,1)))),
-                fontWeight = 'bold'
-    ) %>% 
+    # formatStyle('CADD',
+    #             color = styleInterval(seq.int(1,max(data_cord()$CADD,na.rm = TRUE),1),colfuncCADD(max(seq.int(1,max(data_cord()$CADD,na.rm = TRUE)+1,1)))),
+    #             fontWeight = 'bold'
+    # ) %>% 
     formatStyle(
         'SIFT',
         color = styleEqual(sort(unique(data_cord()$SIFT)),colfuncCADD(length(sort(unique(data_cord()$SIFT))))),
@@ -1070,10 +1061,10 @@ output$table_gene <- renderDataTable({
                                                )
                              )
     ) %>% 
-    formatStyle('CADD',
-                color = styleInterval(seq.int(1,max(val_gene()$CADD,na.rm = TRUE),1),colfuncCADD(max(seq.int(1,max(val_gene()$CADD,na.rm = TRUE)+1,1)))),
-                fontWeight = 'bold'
-    ) %>% 
+    # formatStyle('CADD',
+    #             color = styleInterval(seq.int(1,max(val_gene()$CADD,na.rm = TRUE),1),colfuncCADD(max(seq.int(1,max(val_gene()$CADD,na.rm = TRUE)+1,1)))),
+    #             fontWeight = 'bold'
+    # ) %>% 
     formatStyle(
       'SIFT',
       color = styleEqual(sort(unique(val_gene()$SIFT)),colfuncCADD(length(sort(unique(val_gene()$SIFT))))),
@@ -1089,7 +1080,7 @@ output$table_gene <- renderDataTable({
 
 output$table_sample <- renderDataTable({
   if(nrow(data_sample()) == 0){
-    datatable(val_gene(),rownames = FALSE,
+    datatable(data_sample(),rownames = FALSE,
               options = list(pageLength = 10,
                              lengthMenu = c(10, 20, 50, 100),
                              searchHighlight = TRUE))
@@ -1118,10 +1109,10 @@ output$table_sample <- renderDataTable({
                 )
               )
     ) %>% 
-      formatStyle('CADD',
-                  color = styleInterval(seq.int(1,max(data_sample()$CADD,na.rm = TRUE),1),colfuncCADD(max(seq.int(1,max(data_sample()$CADD,na.rm = TRUE)+1,1)))),
-                  fontWeight = 'bold'
-      ) %>% 
+      # formatStyle('CADD',
+      #             color = styleInterval(seq.int(1,max(data_sample()$CADD,na.rm = TRUE),1),colfuncCADD(max(seq.int(1,max(data_sample()$CADD,na.rm = TRUE)+1,1)))),
+      #             fontWeight = 'bold'
+      # ) %>% 
       formatStyle(
         'SIFT',
         color = styleEqual(sort(unique(data_sample()$SIFT)),colfuncCADD(length(sort(unique(data_sample()$SIFT))))),
@@ -1167,10 +1158,10 @@ output$table_single_gene <- renderDataTable({
                 )
               )
     ) %>% 
-      formatStyle('CADD',
-                  color = styleInterval(seq.int(1,max(val_gene()$CADD,na.rm = TRUE),1),colfuncCADD(max(seq.int(1,max(val_gene()$CADD,na.rm = TRUE)+1,1)))),
-                  fontWeight = 'bold'
-      ) %>% 
+      # formatStyle('CADD',
+      #             color = styleInterval(seq.int(1,max(val_gene()$CADD,na.rm = TRUE),1),colfuncCADD(max(seq.int(1,max(val_gene()$CADD,na.rm = TRUE)+1,1)))),
+      #             fontWeight = 'bold'
+      # ) %>% 
       formatStyle(
         'SIFT',
         color = styleEqual(sort(unique(val_gene()$SIFT)),colfuncCADD(length(sort(unique(val_gene()$SIFT))))),
@@ -1229,14 +1220,14 @@ observe({
   ## checking only one row exists for data_cord()
   if(nrow(data_cord()) == 1){
     ## Panel switching to site panel
-    if(input$main_panel != "site_panel"){updateTabsetPanel(session, "main_panel", selected = "site_panel")}
+    eventReactive(input$but_pos, {if(input$main_panel != "site_panel"){updateTabsetPanel(session, "main_panel", selected = "site_panel")}
+    })
       ## Retrieving site info from unfiltered data - by chr and pos - maybe add ALT as a value for multiallelic support
       site_VAL <- variant_data[[which(names(variant_data) == input$cohort)]][variant_data[[which(names(variant_data) == input$cohort)]]$CHR == data_cord()$CHR & variant_data[[which(names(variant_data) == input$cohort)]]$POS == data_cord()$POS,]
-      names(site_VAL)[1:38] <- column_names
       
       updateSelectInput(session,
                         inputId = "site_sample_select",
-                        choices = as.character(sample_data$SAMPLE_ID[sample_data$DATA_ID %in% names(site_VAL[39:ncol(site_VAL)][which(site_VAL[39:ncol(site_VAL)] == 1 | site_VAL[39:ncol(site_VAL)] == 2)])])
+                        choices = as.character(sample_data$SAMPLE_ID[sample_data$DATA_ID %in% names(site_VAL[42:ncol(site_VAL)][which(site_VAL[42:ncol(site_VAL)] == 1 | site_VAL[42:ncol(site_VAL)] == 2)])])
       )
 
       output$site_sample_table <- renderDataTable({datatable(as.data.frame(sample_data[sample_data$SAMPLE_ID == input$site_sample_select,][c(1,4:8)]),
@@ -1360,7 +1351,7 @@ observe({
     I <- c('Internal',rep.int(0,5))
     sampleRare_plotJSON <- toJSON(rbind(K,E,I))
   } else {
-    K <- as.data.frame(table(cut(data_sample()$X1000G_all,seq.int(0,0.05,0.01),include.lowest = T)))
+    K <- as.data.frame(table(cut(data_sample()$G1KG_all,seq.int(0,0.05,0.01),include.lowest = T)))
     K <- c('1KG',as.numeric(K$Freq))
     E <- as.data.frame(table(cut(data_sample()$ExAC_ALL,seq.int(0,0.05,0.01),include.lowest = T)))
     E <- c('ExAC',as.numeric(E$Freq))
@@ -1418,8 +1409,7 @@ output$single_gene_panel_desc <- renderText({as.character(gene_info$Gene.descrip
   
   sub_data_gene <- eventReactive(input$comp_gene_submit,{
     subset <- lapply(variant_data, function(x){
-      sub <- x[x$Gene.refGene == input$compare_gene,]
-      names(sub)[1:38] <- column_names
+      sub <- x[x$GENE == input$compare_gene,]
       
       # sub$TRANSCRIPT <- str_split(sub$TRANSCRIPT,",",simplify = T)[1]
       # sub$EXON <- str_split(sub$EXON,",",simplify = T)[1]
@@ -1436,7 +1426,7 @@ output$single_gene_panel_desc <- renderText({as.character(gene_info$Gene.descrip
   
   observe({
     updateSelectizeInput(session, 'compare_gene', 
-                         choices = unique(unlist(lapply(variant_data,function(x) unique(x$Gene.refGene)))), 
+                         choices = unique(unlist(lapply(variant_data,function(x) unique(x$GENE)))), 
                          server = TRUE,
                          options = list(placeholder = 'Gene ID'))
     
@@ -1503,10 +1493,9 @@ output$single_gene_panel_desc <- renderText({as.character(gene_info$Gene.descrip
         chr <- strsplit(val_sub_cord(), ":",fixed = TRUE)[[1]][1]
         start1 <- strsplit(val_sub_cord(), ":",fixed = TRUE)[[1]][2]
         ##if only start was provided - look for specific coord - if both start and stop - look up range of variants - start should be less than stop
-        sub <- x[x$CHROM == chr & x$POS == start1,]
+        sub <- x[x$CHR == chr & x$POS == start1,]
         ##report data back to function2:1-9999999999999999
       }
-      names(sub)[1:38] <- column_names
       
       # sub$TRANSCRIPT <- str_split(sub$TRANSCRIPT,",",simplify = T)[1]
       # sub$EXON <- str_split(sub$EXON,",",simplify = T)[1]
