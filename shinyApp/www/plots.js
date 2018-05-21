@@ -108,7 +108,7 @@ Shiny.addCustomMessageHandler("sexjson",function(sex){
         show: false
     },
     color: {
-        pattern: ['#d99fb8', '#3182bd']
+        pattern: ['#d99fb8', '#3182bd', '#D3D3D3']
     },
     tooltip: {
       format: {
@@ -348,7 +348,7 @@ Shiny.addCustomMessageHandler("CohortMutjson",function(CohortMutjson){
           type: 'bar'
       },
       color: {
-        pattern: ['#1f77b4', '#aec7e8', '#ff7f0e']
+        pattern: ['#1f77b4', '#aec7e8', '#ff7f0e', '#D3D3D3']
       },
       size: {
         width: 476
@@ -385,7 +385,7 @@ Shiny.addCustomMessageHandler("CohortTsTvjson",function(CohortTsTvjson){
         width: 476
       },
       color: {
-        pattern: ['#1f77b4', '#aec7e8', '#ff7f0e']
+        pattern: ['#1f77b4', '#aec7e8', '#ff7f0e', '#D3D3D3']
       },
       axis: {
           x: {
