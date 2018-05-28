@@ -309,7 +309,7 @@ Shiny.addCustomMessageHandler("SampleRarejson",function(SampleRarePlot){
       },
       data: {
           columns: mainDataset,
-          type: 'area-spline'
+          type: 'area'
       },
       size: {
         width: 490
@@ -389,9 +389,96 @@ Shiny.addCustomMessageHandler("CohortTsTvjson",function(CohortTsTvjson){
       },
       axis: {
           x: {
-          type: 'category'
-              
+          type: 'category',
+          label: 'TsTv / QUAL'    
+          },
+          y: {
+            max: 3,
+            min: 0
           }
       }
   });
+})
+
+Shiny.addCustomMessageHandler("CohortConseqjson",function(CohortConseqjson){
+  
+  var mainDataset = CohortConseqjson
+  
+  var chart11 = c3.generate({
+      bindto: '#plotCohortConseq',
+      data: {
+          x: 'x',
+          columns: mainDataset,
+          type: 'bar'
+      },
+      color: {
+        pattern: ['#1f77b4', '#aec7e8', '#ff7f0e', '#D3D3D3']
+      },
+      size: {
+        width: 476
+      },
+      bar: {
+      width: {
+            ratio: 0.9 
+        }
+      },
+      axis: {
+          x: {
+          type: 'category'
+          },
+          y: {
+            label: 'Count / Sample'
+        },
+        rotated: true
+      }
+  });
+
+})
+
+
+Shiny.addCustomMessageHandler("admixJSON",function(admixJSON){
+  
+  var mainDataset = admixJSON
+  
+  var chart12 = c3.generate({
+      bindto: '#plotadmixJSON',
+      data: {
+          x: 'Sample',
+          columns: mainDataset,
+          type: 'bar',
+          groups: [
+            ['SAS', 'EUR', 'EAS', 'AFR', 'AMR']
+        ]
+      },
+      color: {
+        pattern: ['#e31a1c', '#1f78b4', '#33a02c', '#6a3d9a', '#ff7f00'] 
+      },
+      size: {
+        height: 190
+        //width: 1229
+      },
+      legend: {
+          position: 'bottom'
+      },
+      bar: {
+      width: {
+            ratio: 1 
+        }
+      },
+      axis: {
+          x: {
+          show: false,
+          type: 'category'
+          },
+          y: {
+            max: 1,
+            min: 0,
+            padding: {
+              top: 0,
+              bottom: 0
+            }
+          }
+      }
+  });
+
 })

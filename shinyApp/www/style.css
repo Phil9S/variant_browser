@@ -46,4 +46,7 @@ hr {
     background-image: linear-gradient(to right, #e0e0e0, #d6d6d6, #e0e0e0);
 }
 
+g.traces{
+  stroke-width:0;
+}
 </style>
