@@ -11,15 +11,15 @@ library(shinyalert)
 library(htmltools)
 library(bsplus)
 
+library(plotly)
 library(stringr)
 library(markdown)
 
-## SHINY APP - VARIANT BROWSER - ALPHA 1.0
+## SHINY APP - VARIANT BROWSER - ALPHA 1.3
 
 ## TO FIX!
 
-## Rename G1KG column
-
+## Plotly graph - selection of some sample points results in no info - ERROR:length of 'dimnames' [2] not equal to array extent
 ## External database links fail if table length = 0
 ## Gene-specific page and gene search page alternate when searching for the same, reflitering or searching for a new gene
 ## Session hang on empty tables
@@ -36,17 +36,21 @@ library(markdown)
 ## Restore CADD to be numeric value with NA not N/a
 ## Filtering and including intronic makes the sample-AF plot render below 0
 ## Transcript table renders as empty if data is missing?
+## Table header tooltips
 
 ## Links in table https://github.com/rstudio/DT/issues/58
 
 #### External data ####
 #variant_data <- read.table(file = "test_variant_data.txt", header = TRUE, sep = "\t")
-load("www/2018-05-21-db_cohort_data.RData")
+load("www/2018-05-21-db_cohort_data_short.RData")
 variant_data <- cohort_list
 rm(cohort_list)
 sample_data <- read.table(file = "www/2018-05-21-db_sample_data.txt", header = TRUE, sep = "\t")
 gene_data <- read.table(file = "www/gene_ids_reference.tsv", header = TRUE, sep = "\t",stringsAsFactors = F)
 gene_info <- read.table(file = "www/gene_info_formatted.tsv", header = TRUE, sep = "\t",quote = "",stringsAsFactors = F)
+
+load("www/admixture_pop.RData")
+load("www/pca_pop.RData")
 
 #### external non-session server functions and varibales ####
 # 
@@ -206,8 +210,8 @@ ui = fluidPage(theme = shinytheme("flatly"),
                   <p>Provided tools:</P>
                   <ul>
                   <li>Variant browser</li>
-                  <li>Cohort Comparison - Not Implemented</li>
-                  <li>Additional databases - Not Implemented</li>
+                  <li>Cohort Comparison</li>
+                  <li>Population analysis - Not Implemented</li>
                   </ul>
                   <p>The Variant browser allows for interrogation of variants present individual cohorts. Data can be searched by:</P>
                   <ul>
@@ -294,15 +298,6 @@ ui = fluidPage(theme = shinytheme("flatly"),
                     fluidRow(
                       column(12,textInput(inputId = "gene", label = "Gene(s)",placeholder = "APC,BRCA1,TTN"))
                             ),
-                    fluidRow(
-                      column(12,prettyCheckbox(inputId = "gene_wildcard",
-                                               label = "Exact match", 
-                                               value = FALSE,
-                                               animation = "smooth",
-                                               status = "primary",
-                                               shape = "curve",
-                                               icon = icon("check"))
-                      )),
                     h5(tags$em("Fitlering options")),
                     fluidRow(
                       column(12,materialSwitch(inputId = "syn_cord_gene",label = "Include synonymous",value = FALSE,status = "primary",right = TRUE)
@@ -451,10 +446,10 @@ ui = fluidPage(theme = shinytheme("flatly"),
                             )
                           ),
                           column(4,
-                              h4("PLOT PLACEHOLDER")
+                              h4("PLACEHOLDER")
                             ),
                           column(4,
-                              h4("PLOT PLACEHOLDER")
+                              h4("PLACEHOLDER")
                             )
                         ),
                         h4(""),
@@ -524,9 +519,10 @@ ui = fluidPage(theme = shinytheme("flatly"),
                          ),
                          fluidRow(
                            column(12,
-                                  dataTableOutput(outputId = "site_rarity_table")
+                                 div(dataTableOutput(outputId = "site_rarity_table"),style = "font-size: 75%; width: 100%")
                                  )
-                         )
+                         ),
+                        fluidRow(h4(""))
                        )
                 ),
                 tabPanel("Sample", value = "sample_panel",
@@ -578,78 +574,206 @@ ui = fluidPage(theme = shinytheme("flatly"),
                 fluidRow(
                   column(12,h4("Select comparison type:"),
                          selectInput(inputId = "comp_analysis_type",label = NULL,choices = c("By Gene","By Position"),multiple = F,selected = "By Gene"),
-                         h6(tags$em("N.B - Only first transcript information shown"), style = "text-align: center; margin: 0px;")
+                         h6(tags$em(""), style = "text-align: center; margin: 0px;")
                   )
                 ),
                 tags$hr(),
                 div(id = "animation_comp_gene",conditionalPanel(condition = "input.comp_analysis_type == 'By Gene'",
-                                                                fluidRow(
-                                                                  column(12,h4("Select Gene:"),selectizeInput(inputId = "compare_gene",label = NULL,choices = NULL),
-                                                                         actionButton(inputId = "comp_gene_submit",label = "Search",icon = icon("search"),width = "100%")
-                                                                  )
-                                                                )
+                          fluidRow(
+                             column(12,h4("Select Gene:"),selectizeInput(inputId = "compare_gene",label = NULL,choices = NULL),
+                                       actionButton(inputId = "comp_gene_submit",label = "Search",icon = icon("search"),width = "100%")
+                             )
+                          )
                 )),
                 div(id = "animation_comp_pos",conditionalPanel(condition = "input.comp_analysis_type == 'By Position'",
-                                                               fluidRow(
-                                                                 column(12,h4("Enter rsID or genomic position:"),textInput(inputId = "compare_pos",label = NULL,placeholder = "Position or rsID"),
-                                                                        actionButton(inputId = "comp_pos_submit",label = "Search",icon = icon("search"),width = "100%")
-                                                                 )
-                                                               )
+                          fluidRow(
+                             column(12,h4("Enter rsID or genomic position:"),textInput(inputId = "compare_pos",label = NULL,placeholder = "Position or rsID"),
+                                       actionButton(inputId = "comp_pos_submit",label = "Search",icon = icon("search"),width = "100%")
+                             )
+                           )
                 ))
          ),
          column(10,
                 h6("Cohort statistics:"),
                 column(width = 4, tags$div(id="plotCohortmut")),
                 column(width = 4, tags$div(id="plotCohortTstv")),
-                column(width = 4, tags$div(id=""))
+                column(width = 4, tags$div(id="plotCohortConseq"))
          ),
+         fluidRow(tags$hr()),
          tabsetPanel(id = "comp_tabs",
-                     
+                     tabPanel("blank",value = "comp_blank_panel"),
                      tabPanel(title = "gene",value = "comp_gene_panel",
                               fluidRow(
-                                hr(),
                                 column(12,
-                                       h4("Summary:"),
-                                       h4("Some more text")
+                                       h4("Search Results:")
                                 )
                               ),
-                              column(8,
+                              column(12,
                                      fluidRow(
-                                       column(width = 12,uiOutput("comp_gene"),style = "font-size: 80%; width: 100%;")
+                                       column(width = 12,withSpinner(uiOutput("comp_gene"),type = 4,color = "#95a5a6"),style = "font-size: 80%; width: 100%;")
                                      )
                               ),
-                              column(4,h4("placeholder")
+                              fluidRow(
+                                column(12,h4("")
+                                )
+                              ),
+                              fluidRow(
+                                column(4,h4("")),column(1,offset = 7,downloadButton(outputId = "comp_gene_dl",label = "Download"))
+                              ),
+                              fluidRow(
+                                column(12,h4("")
+                                )
                               )
                      ),
                      tabPanel(title = "pos", value = "comp_pos_panel",
                               fluidRow(
-                                tags$hr(),
                                 column(12,
-                                       h4("Summary:")
-                                ),
-                                tags$hr()
+                                       h4("Search Results:")
+                                )
                               ),
-                              column(8,
+                              column(12,
                                      fluidRow(
-                                       column(width = 8,uiOutput("comp_pos"),style = "font-size: 80%; width: 100%;")
+                                       column(width = 12,withSpinner(uiOutput("comp_pos"),type = 4,color = "#95a5a6"),style = "font-size: 80%; width: 100%;")
                                      )
                               ),
-                              column(4,h4("placeholder"))
+                              fluidRow(
+                                column(12,h4("")
+                                )
+                              ),
+                              fluidRow(
+                                column(4,h4("")),column(1,offset = 7,downloadButton(outputId = "comp_pos_dl",label = "Download"))
+                              ),
+                              fluidRow(
+                                column(12,h4("")
+                                )
+                              )    
                      )
-         )    
+          )    
         ),
-#### Other databases tab ####
-        tabPanel(title = "Other Databases", icon = icon("database"),
-                 h4("MedGen Database repository"),
-                 fluidRow()
+#### Populations tab ####
+        tabPanel(title = "Populations", icon = icon("globe"),
+              fluidRow(
+                 selectInput(inputId = "pop_select",label = "Select population",choices = names(variant_data),multiple = F)
+              ),
+              tags$hr(),
+              fluidRow(
+              column(2,h4("PCA analysis")),
+              column(2,offset = 6,h4("Sample information"))
+              ),
+              fluidRow(
+              column(6,withSpinner(plotlyOutput("pca",height = "420px"),type = 4,color = "#95a5a6")),
+              column(2,selectInput(inputId = "pca",
+                                    label = "Component",
+                                    choices = c("PC1 vs. PC2 (Population)",
+                                                "PC2 vs. PC3",
+                                                "PC3 vs. PC4",
+                                                "PC4 vs. PC5"),
+                                    multiple = F,
+                                    selected = "PC1 vs. PC2 (Population)"), style = "display: inline; align: center;"),
+              column(4,tableOutput("pca_click"))
+              ),
+              fluidRow(column(12,tags$hr())),
+              h4("Admixture analysis"),
+              fluidRow(
+              tags$div(id="plotadmixJSON")
+              )
         ),
-        
 #### Dropdown navbar section ####
         navbarMenu(title = "More", icon = icon("cogs"),
-              tabPanel(title = "FAQ",
-                includeMarkdown(path = "./www/faq.Rmd")),
               tabPanel(title = "About",
-                  includeMarkdown(path = "./www/about.Rmd")) ##path to .Rmd file - about 
+              fluidRow(
+                column(8,offset = 2,
+                  h4(tags$b("The Medical Genetics Data Portal (MGDP) is a platform for the viewing and querying of genetic data sets generated from internal cohorts"))
+                , style = "text-align: center;")
+              ),
+              fluidRow(
+                column(8,offset = 2,tags$img(src = "./images/flow_chart.png", width = "100%", height = "100%"))
+              ),
+              h3("Data filtering"),
+              h3("Supporting scripts"),
+              code("./db_prep.sh --i /data/vcfs --anno annovar/file/path/anno --out"),
+              h3("Data preparation"),
+              h3("Software / Library requirements"),
+              fluidRow(
+                column(4,h4("Software dependecies")),column(4,h4("Web app libraries"))
+              ),
+              fluidRow(
+                column(4,
+                  tags$li(tags$a(href="https://vcftools.github.io/index.html","VCFtools")),
+                  tags$li(tags$a(href="https://software.broadinstitute.org/gatk/","GATK")),
+                  tags$li(tags$a(href="http://annovar.openbioinformatics.org/en/latest/","ANNOVAR")),
+                  tags$li(tags$a(href="https://samtools.github.io/bcftools/bcftools.html","BCFtools")),
+                  tags$li(tags$a(href="http://www.htslib.org/doc/tabix.html","Tabix")),
+                  tags$li(tags$a(href="https://www.genetics.ucla.edu/software/admixture/","Admixture"))
+                ),
+                column(4,
+                  tags$li(tags$a(href="","devtools")),
+                  tags$li(tags$a(href="","shiny")),
+                  tags$li(tags$a(href="","shinythemes")),
+                  tags$li(tags$a(href="","jsonlite")),
+                  tags$li(tags$a(href="","shinycssloaders")),
+                  tags$li(tags$a(href="","shinywidgets")),
+                  tags$li(tags$a(href="","shinyjs"))
+                ),
+                column(4,
+                  tags$li(tags$a(href="","DT")),
+                  tags$li(tags$a(href="","shinyalert")),
+                  tags$li(tags$a(href="","htmltools")),
+                  tags$li(tags$a(href="","bsplus")),
+                  tags$li(tags$a(href="","plotly")),
+                  tags$li(tags$a(href="","stringr")),
+                  tags$li(tags$a(href="","markdown"))
+                )
+              ),
+              h5("The source code can be found",tags$a(href='https://github.com/Phil9S/variant_browser','here'))
+              ),
+              tabPanel(title = "FAQ",
+                  fluidRow(h3("FAQ"))
+              ),
+              tabPanel(title = "Development",
+                  h4("Known issues & bugs"),
+                  column(12,
+                         bs_accordion(id = "dev_info") %>%
+                         bs_set_opts(panel_type = "primary", use_heading_link = TRUE) %>%
+                         bs_append(title = "App",
+                            content = tags$div(HTML("
+                                      <ul>
+                                      <li>External database links fail on single gene lookup if search returnlength = 0</li>
+                                      <li>Plotly graph - selection of some sample points results in no info - ERROR:length of 'dimnames' [2] not equal to array extent</li>
+                                      <li>Gene & Pos searching alternates between only rendering table and full page when same, reflitering or searching for a new gene</li>
+                                      <li>Session occasionally hangs on empty table return - might be resolved?</li>
+                                      <li>Gene fields with comma seperated entries may extend tables outside page bounderies if too long</li>
+                                      <li>Site info row names out of order</li>
+                                      <li>Tooltips for donught plots state data undefined as soruce</li>
+                                      <li>GENE SEARCH ERROR: Warning in gene_info$GENE == unique(val_gene()$GENE) :longer object length is not a multiple of shorter object length</li>
+                                      <li>Missing/empty value handling for plots - if no fs for exmaple, then data is misaligned in json - change to sum() not table()</li>
+                                      <li>Filtering using 'including intronic' occasionally makes the sample-AF plot render below 0</li>
+                                      <li>Transcript table renders as empty if data is missing - Requires investigation</li>
+                                      </ul>
+                                      "))) %>%
+                         bs_append(title = "Pre-processing",
+                            content = tags$div(HTML("
+                                      <ul>
+                                      <li>1k genomes is incorrectly named as 'G1KG'</li>
+                                      <li>Restore CADD to be numeric value with NA not N/a</li>
+                                      <li>Add population data support by intergrating PCA and Admixture data</li>
+                                      </ul>
+                                      "))) %>%
+                         bs_append(title = "Features in development",
+                            content = tags$div(HTML("
+                                      <ul>
+                                      <li>Colour schemes inprovements</li>
+                                      <li>Statistical testing metrics - fishers/Burden/etc</li>
+                                      <li>Data download buttons for all pages</li>
+                                      <li>Tooltips and help icons for search fields, filters and table headers</li>
+                                      <li>Oncogene like plotting for sample sets</li>
+                                      <li>HET/HOM call flag for site-specifc page & sample page data table</li>
+                                      <li>Support for comma-sv in clinvar table on site panel with multiple entries</li>
+                                      </ul>
+                                      ")))        
+                         )
+                  
+              )
         )
       )
     )
@@ -660,13 +784,14 @@ server = function(input, output, session){
 
 #### TEMP MODEL
 
-shinyalert(title = "<h4>v0.1 - alpha build</h4>",
+shinyalert(title = "<h4>MGDP - Alpha (v1.3)</h4>",
            type = "warning",
-           text = "<h5>----------------------------------------------------------</h5>
+           text = "<h5>-----------------------------------------------------------</h5>
                    <h5><b>- </b>Web app is still in development</h5>
                    <h5><b>- </b>There will be weird bugs and errors</h5>
                    <h5><b>- </b>It will <b>definitely</b> break</h5>
-                   <h5>----------------------------------------------------------</h5>
+                    <h5><b>- </b>Check 'Development' tab for known issues</b></h5>
+                   <h5>-----------------------------------------------------------</h5>
                    <h5><b>Please inform me when, how, and what breaks!</b></h5>",
            html = T,
            closeOnEsc = T,
@@ -826,7 +951,6 @@ hide(id = "comp_tabs")
                   & as.numeric(datC$POS) >= as.numeric(start1)
                   & as.numeric(datC$POS) <= as.numeric(stop1),]
           }
-      }
       
       datC <- datC[datC$G1KG_all <= input$X1000G_rarity_pos & datC$ExAC_ALL <= input$Exac_rarity_pos,]
       
@@ -847,6 +971,7 @@ hide(id = "comp_tabs")
       if(input$splice_cord_pos == TRUE){
         datC <- datC[datC$CONSEQ == "splicing",]
       }
+    }
     ##report table to render function
       datC <- datC[colnames(datC) %in% main_table]
       datC <- datC[main_table]
@@ -896,11 +1021,8 @@ hide(id = "comp_tabs")
             )
             updateTextInput(session,"gene",value = gene_list[!gene_list %in% no_list])
           }
-        gene_list <- gene_list[gene_list %in% datG$Gene.refGene]
+        gene_list <- gene_list[gene_list %in% datG$GENE]
         datG <- datG[datG$GENE %in% gene_list,]
-        updatePrettyCheckbox(session,inputId = "gene_wildcard",value = FALSE)
-      } else if(input$gene_wildcard == FALSE) {
-        datG <- datG[grep(gene_list,datG$GENE),]
       } else {
         datG <- datG[datG$GENE == gene_list,]
         if(input$main_panel != "single_gene_panel"){updateTabsetPanel(session, "main_panel", selected = "single_gene_panel")}
@@ -1258,8 +1380,6 @@ observe({
       )
       })
 
-      
-
       data_af <- site_VAL
       index_AF <- names(data_af[names(data_af) %in% siterarity_cols])
       site_AF <- t(data_af[names(data_af) %in% siterarity_cols])
@@ -1272,7 +1392,7 @@ observe({
                                                                options = list(dom = 't',ordering=F)
       )
       })
-
+      
       output$site_title <- renderText({paste(paste(gsub(pattern = "chr",x = site_VAL[2],replacement = ""),":",site_VAL[3],sep = ""),site_VAL[5], "/", site_VAL[6])})
       output$site_hetv <- renderText({paste(site_VAL$HET_val," (",round(site_VAL$HET_rate,digits = 1),"%)",sep = "")})
       output$site_homv <- renderText({paste(site_VAL$HOM_val," (",round(site_VAL$HOM_rate,digits = 1),"%)",sep = "")})
@@ -1396,13 +1516,11 @@ output$single_gene_panel_desc <- renderText({as.character(gene_info$Gene.descrip
 #     }
 #   })
 
-#### Comparison server functions
+#### Comparison server functions ####
 
   ##Tab switch
-  observe({
-    if(input$comp_analysis_type == "By Gene"){updateTabsetPanel(session, "comp_tabs", selected = "comp_gene_panel")}
-    if(input$comp_analysis_type == "By Position"){updateTabsetPanel(session, "comp_tabs", selected = "comp_pos_panel")}
-  })
+  observeEvent(input$comp_gene_submit, {if(input$comp_tabs != "comp_gene_panel"){updateTabsetPanel(session, "comp_tabs", selected = "comp_gene_panel")}})
+  observeEvent(input$comp_pos_submit, {if(input$comp_tabs != "comp_pos_panel"){updateTabsetPanel(session, "comp_tabs", selected = "comp_pos_panel")}})
   
   ## Gene comparison 
   max_table = length(variant_data)
@@ -1410,12 +1528,6 @@ output$single_gene_panel_desc <- renderText({as.character(gene_info$Gene.descrip
   sub_data_gene <- eventReactive(input$comp_gene_submit,{
     subset <- lapply(variant_data, function(x){
       sub <- x[x$GENE == input$compare_gene,]
-      
-      # sub$TRANSCRIPT <- str_split(sub$TRANSCRIPT,",",simplify = T)[1]
-      # sub$EXON <- str_split(sub$EXON,",",simplify = T)[1]
-      # sub$DNA <- str_split(sub$DNA,",",simplify = T)[1]
-      # sub$AA <- str_split(sub$AA,",",simplify = T)[1]
-      
       sub <- sub[colnames(sub) %in% main_table]
       sub <- sub[main_table]
       sub <- sub[!colnames(sub) %in% siteconseq_cols]
@@ -1426,7 +1538,7 @@ output$single_gene_panel_desc <- renderText({as.character(gene_info$Gene.descrip
   
   observe({
     updateSelectizeInput(session, 'compare_gene', 
-                         choices = unique(unlist(lapply(variant_data,function(x) unique(x$GENE)))), 
+                         choices = sort(unique(unlist(lapply(variant_data,function(x) unique(x$GENE))))), 
                          server = TRUE,
                          options = list(placeholder = 'Gene ID'))
     
@@ -1453,6 +1565,22 @@ output$single_gene_panel_desc <- renderText({as.character(gene_info$Gene.descrip
                       dom = 'tp',
                       pageLength = 5,
                       lengthMenu = c(10, 20, 50, 100),
+                      columnDefs = list(
+                        list(
+                          targets = c(7:10),
+                          render = JS(
+                            "function(data, type, row, meta) {",
+                            "return type === 'display' && data.indexOf(',') > 0 ?",
+                            "'<span title=\"' + data + '\">' + data.substr(0, data.indexOf(',')) + '...</span>' : data;",
+                            "}")),
+                        list(
+                          targets = c(3,4),
+                          render = JS(
+                            "function(data, type, row, meta) {",
+                            "return type === 'display' && data.length > 5 ?",
+                            "'<span title=\"' + data + '\">' + data.substr(0, 5) + '...</span>' : data;",
+                            "}"))
+                      ),
                       searchHighlight = TRUE))
         })
       })
@@ -1496,12 +1624,6 @@ output$single_gene_panel_desc <- renderText({as.character(gene_info$Gene.descrip
         sub <- x[x$CHR == chr & x$POS == start1,]
         ##report data back to function2:1-9999999999999999
       }
-      
-      # sub$TRANSCRIPT <- str_split(sub$TRANSCRIPT,",",simplify = T)[1]
-      # sub$EXON <- str_split(sub$EXON,",",simplify = T)[1]
-      # sub$DNA <- str_split(sub$DNA,",",simplify = T)[1]
-      # sub$AA <- str_split(sub$AA,",",simplify = T)[1]
-      
       sub <- sub[colnames(sub) %in% main_table]
       sub <- sub[main_table]
       sub <- sub[!colnames(sub) %in% siteconseq_cols]
@@ -1535,6 +1657,22 @@ output$single_gene_panel_desc <- renderText({as.character(gene_info$Gene.descrip
                       dom = 'tp',
                       pageLength = 5,
                       lengthMenu = c(10, 20, 50, 100),
+                      columnDefs = list(
+                        list(
+                          targets = c(7:10),
+                          render = JS(
+                            "function(data, type, row, meta) {",
+                            "return type === 'display' && data.indexOf(',') > 0 ?",
+                            "'<span title=\"' + data + '\">' + data.substr(0, data.indexOf(',')) + '...</span>' : data;",
+                            "}")),
+                        list(
+                          targets = c(3,4),
+                          render = JS(
+                            "function(data, type, row, meta) {",
+                            "return type === 'display' && data.length > 5 ?",
+                            "'<span title=\"' + data + '\">' + data.substr(0, 5) + '...</span>' : data;",
+                            "}"))
+                      ),
                       searchHighlight = TRUE))
         })
       })
@@ -1552,11 +1690,33 @@ output$single_gene_panel_desc <- renderText({as.character(gene_info$Gene.descrip
     }
   })
   
+  ##Saving comparison results
+  output$comp_gene_dl <- downloadHandler(filename = function(){
+              paste("mgvb_gene_comparison_",Sys.Date(),"_",input$compare_gene,".txt",sep = "")
+    },
+    content = function(file){
+      data <- do.call(rbind,lapply(seq_len(length(sub_data_gene())),function(x){
+        cbind(Cohort=rep(names(sub_data_gene())[x],times=nrow(sub_data_gene()[[x]])),sub_data_gene()[[x]])
+      }))
+      write.table(data,file,sep = "\t",quote = F,col.names = T,row.names = F)
+    })
+  
+  output$comp_pos_dl <- downloadHandler(filename = function(){
+    paste("mgvb_pos_comparison_",Sys.Date(),".txt",sep = "")
+  },
+  content = function(file){
+    data <- do.call(rbind,lapply(seq_len(length(sub_data_pos())),function(x){
+      cbind(Cohort=rep(names(sub_data_pos())[x],times=nrow(sub_data_pos()[[x]])),sub_data_pos()[[x]])
+    }))
+    write.table(data,file,sep = "\t",quote = F,col.names = T,row.names = F)
+  })
+
+#### Cohort summary plots ####
   observe({
     cohort_mutations_JSON <- do.call(rbind,lapply(variant_data,function(x){
       j <- as.data.frame(table(paste(x$REF,x$ALT,sep = ">")))
       j <- j[j$Var1 %in% mut_types,]
-      j <- t(signif(j[2]/length(names(x[39:ncol(x)])),digits = 2))
+      j <- t(signif(j[2]/length(names(x[42:ncol(x)])),digits = 2))
     }))
     cohort_mutations_JSON <- as.data.frame(cohort_mutations_JSON,row.names = length(cohort_mutations_JSON))
     cohort_mutations_JSON <- rbind(as.character(mut_types),cohort_mutations_JSON)
@@ -1583,8 +1743,155 @@ output$single_gene_panel_desc <- renderText({as.character(gene_info$Gene.descrip
 
     session$sendCustomMessage("CohortTsTvjson",cohort_tstv_JSON)
   })
+  
+  observe({
+    cohort_conseq_JSON <- do.call(rbind,lapply(variant_data, function(x){
+      int <- signif(length(x$CONSEQ[x$CONSEQ == "intronic"])/ ncol(x[42:ncol(x)]),digits = 2)
+      syn <- signif(length(x$CONSEQ[x$CONSEQ == "synonymous"])/ ncol(x[42:ncol(x)]),digits = 2)
+      nsyn <- signif(length(x$CONSEQ[x$CONSEQ == "nonsynonymous"])/ ncol(x[42:ncol(x)]),digits = 2)
+      trunc <- signif(length(x$CONSEQ[x$CONSEQ %in% c("stopgain","FS deletion","FS insertion")])/ ncol(x[42:ncol(x)]),digits = 2)
+      splc <- signif(length(x$CONSEQ[x$CONSEQ == "splicing"])/ ncol(x[42:ncol(x)]),digits = 2)
+      c(splc,trunc,nsyn,syn,int)
+    }))
+    cohort_conseq_JSON <- as.data.frame(cohort_conseq_JSON,row.names = length(cohort_conseq_JSON))
+    cohort_conseq_JSON <- rbind(c("Splicing","Truncations","Nonsynonymous","Synonymous","Intronic"),cohort_conseq_JSON)
+    cohort_conseq_JSON <- cbind(c("x",names(variant_data)),cohort_conseq_JSON)
+    cohort_conseq_JSON <- toJSON(cohort_conseq_JSON,dataframe = 'values')
+    
+    session$sendCustomMessage("CohortConseqjson",cohort_conseq_JSON)
+  })
+#### Population functions ####
+  admixJSON <- toJSON(data.json)
+  session$sendCustomMessage("admixJSON",admixJSON)
+  
+  pca <- data.merge
+  pca[,c(2:6)] <- apply(pca[,c(2:6)],2,function(x) (x-min(x))/(max(x)-min(x))+0.05)
+  pca$Super_population <- factor(pca$Super_population,levels = c("Sample","SAS","EUR","EAS","AFR","AMR"))
 
+  plotly_out <- reactive({
+   
+        if(input$pca == "PC1 vs. PC2 (Population)"){
+            pca <- pca[colnames(pca) %in% c("sample","PC1","PC2","Super_population")]
+        } else if(input$pca == "PC2 vs. PC3"){
+            pca <- pca[colnames(pca) %in% c("sample","PC2","PC3","Super_population")]
+        } else if(input$pca == "PC3 vs. PC4"){
+            pca <- pca[colnames(pca) %in% c("sample","PC3","PC4","Super_population")]
+        } else if(input$pca == "PC4 vs. PC5"){
+            pca <- pca[colnames(pca) %in% c("sample","PC4","PC5","Super_population")]
+        }
+
+    P <- plot_ly(data = pca[pca$Super_population == "SAS",],
+                 type = "scatter",
+                 mode = "markers",
+                 name = "SAS",
+                 opacity = 0.4,
+                 text = pca$sample[pca$Super_population == "SAS"],
+                 hoverinfo = "text",
+                 x = pca[pca$Super_population == "SAS",][,2],
+                 y = pca[pca$Super_population == "SAS",][,3]) %>%
+      add_trace(data = pca[pca$Super_population == "EUR",],
+                type = "scatter",
+                mode = "markers",
+                name = "EUR",
+                opacity = 0.4,
+                text = pca$sample[pca$Super_population == "EUR"],
+                hoverinfo = "text",
+                x = pca[pca$Super_population == "EUR",][,2],
+                y = pca[pca$Super_population == "EUR",][,3]) %>%
+      add_trace(data = pca[pca$Super_population == "EAS",],
+                type = "scatter",
+                mode = "markers",
+                name = "EAS",
+                opacity = 0.4,
+                text = pca$sample[pca$Super_population == "EAS"],
+                hoverinfo = "text",
+                x = pca[pca$Super_population == "EAS",][,2],
+                y = pca[pca$Super_population == "EAS",][,3]) %>%
+      add_trace(data = pca[pca$Super_population == "AFR",],
+                type = "scatter",
+                mode = "markers",
+                name = "AFR",
+                opacity = 0.4,
+                text = pca$sample[pca$Super_population == "AFR"],
+                hoverinfo = "text",
+                x = pca[pca$Super_population == "AFR",][,2],
+                y = pca[pca$Super_population == "AFR",][,3]) %>%
+      add_trace(data = pca[pca$Super_population == "AMR",],
+                type = "scatter",
+                mode = "markers",
+                name = "AMR",
+                opacity = 0.4,
+                text = pca$sample[pca$Super_population == "AMR"],
+                hoverinfo = "text",
+                x = pca[pca$Super_population == "AMR",][,2],
+                y = pca[pca$Super_population == "AMR",][,3]) %>%
+      add_trace(data = pca[pca$Super_population == "Sample",],
+                type = "scatter",
+                mode = "markers",
+                name = "Sample",
+                opacity = 1,
+                text = pca$sample[pca$Super_population == "Sample"],
+                hoverinfo = "text",
+                x = pca[pca$Super_population == "Sample",][,2],
+                y = pca[pca$Super_population == "Sample",][,3]) %>%
+      layout(legend = list(orientation = 'h',xanchor = "center",x = 0.5)) %>%
+      config(displaylogo = FALSE, collaborate = FALSE, cloud = FALSE,
+             modeBarButtonsToRemove = list(
+               'lasso2d',
+               'hoverClosestCartesian',
+               'hoverCompareCartesian',
+               'toggleSpikelines',
+               'zoom2d',
+               'pan2d',
+               'select2d',
+               'autoScale2d',
+               'lasso2d'
+             ))
+    return(P)
+    })
+
+  output$pca <- renderPlotly(plotly_out())
+  
+  output$pca_click <- renderTable({
+    s <- event_data("plotly_click")
+    x <- s$x
+    y <- s$y
+    if (length(s) == 0) {
+      
+      return(sprintf("Select a point in the PCA to display sample information"))
+    } else {
+      if(input$pca == "PC1 vs. PC2 (Population)"){
+        pca <- pca[colnames(pca) %in% c("sample","PC1","PC2","Super_population")]
+      } else if(input$pca == "PC2 vs. PC3"){
+        pca <- pca[colnames(pca) %in% c("sample","PC2","PC3","Super_population")]
+      } else if(input$pca == "PC3 vs. PC4"){
+        pca <- pca[colnames(pca) %in% c("sample","PC3","PC4","Super_population")]
+      } else if(input$pca == "PC4 vs. PC5"){
+        pca <- pca[colnames(pca) %in% c("sample","PC4","PC5","Super_population")]
+      }
+
+      sample <- pca$sample[round(pca[,2],digits = 6) == round(x,digits = 6) & round(pca[,3],digits = 6) == round(y,digits = 6)]
+      sample_col <- t(sample_data[sample_data$SAMPLE_ID == sample,][c(1,4:ncol(sample_data))])
+      colnames(sample_col) <- sample
+      sample_table <- cbind(Information=c("Cohort","Age","Population","Phenotype","Sex","Status"),sample_col)
+    }
+  })
 #### Server END
 }
 ## App call
 shinyApp(ui = ui, server = server)
+
+# p <- ggplot() +
+#         geom_point(data = pca,aes(x = pca[,2], y = pca[,3],col=Super_population),stroke = 0,alpha = 0.2,size = 1) +
+#         theme(axis.line = element_line(colour = "grey15",size = 0.5),panel.grid.major = element_line(colour = "grey90")) +
+#         theme(panel.grid.minor = element_line(colour = "grey90"),panel.background = element_rect(fill=NA)) +
+#         theme(axis.text = element_blank(),axis.ticks = element_blank(),legend.key = element_blank(),legend.key.size = ) +
+#         scale_x_continuous(expand = c(0,2)) + scale_y_continuous(expand = c(0,2)) +
+#         scale_color_manual(name = "Population",values=c("grey15", "#e31a1c", "#1f78b4", "#33a02c", "#6a3d9a", "#ff7f00")) +
+#         labs(x = colnames(pca[2]),y = colnames(pca[3])) +
+#         guides(colour = guide_legend(override.aes = list(size=2,alpha = 1))) +
+#       annotate("point",col = "grey15",size = 1,
+#                pca[,2][pca$Super_population == "Sample"],
+#                pca[,3][pca$Super_population == "Sample"])
+# 
+# ggplotly(p)
