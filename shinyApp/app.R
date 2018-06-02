@@ -37,12 +37,14 @@ library(markdown)
 ## Filtering and including intronic makes the sample-AF plot render below 0
 ## Transcript table renders as empty if data is missing?
 ## Table header tooltips
+## Transcript returns duplicated columns if empty on site-specific page
+## Combine chr and pos in table output for ease of CopyPaste
 
 ## Links in table https://github.com/rstudio/DT/issues/58
 
 #### External data ####
 #variant_data <- read.table(file = "test_variant_data.txt", header = TRUE, sep = "\t")
-load("www/2018-05-21-db_cohort_data_short.RData")
+load("www/2018-05-21-db_cohort_data.RData")
 variant_data <- cohort_list
 rm(cohort_list)
 sample_data <- read.table(file = "www/2018-05-21-db_sample_data.txt", header = TRUE, sep = "\t")
@@ -519,7 +521,7 @@ ui = fluidPage(theme = shinytheme("flatly"),
                          ),
                          fluidRow(
                            column(12,
-                                 div(dataTableOutput(outputId = "site_rarity_table"),style = "font-size: 75%; width: 100%")
+                                 div(dataTableOutput(outputId = "site_rarity_table"),style = "font-size: 70%; width: 100%")
                                  )
                          ),
                         fluidRow(h4(""))
@@ -657,8 +659,7 @@ ui = fluidPage(theme = shinytheme("flatly"),
               ),
               tags$hr(),
               fluidRow(
-              column(2,h4("PCA analysis")),
-              column(2,offset = 6,h4("Sample information"))
+              column(2,h4("PCA analysis"))
               ),
               fluidRow(
               column(6,withSpinner(plotlyOutput("pca",height = "420px"),type = 4,color = "#95a5a6")),
@@ -669,8 +670,9 @@ ui = fluidPage(theme = shinytheme("flatly"),
                                                 "PC3 vs. PC4",
                                                 "PC4 vs. PC5"),
                                     multiple = F,
-                                    selected = "PC1 vs. PC2 (Population)"), style = "display: inline; align: center;"),
-              column(4,tableOutput("pca_click"))
+                                    selected = "PC1 vs. PC2 (Population)"),
+                       tags$hr(),
+                       tableOutput("pca_click"), style = "display: inline; align: center;")
               ),
               fluidRow(column(12,tags$hr())),
               h4("Admixture analysis"),
@@ -731,27 +733,27 @@ ui = fluidPage(theme = shinytheme("flatly"),
                   fluidRow(h3("FAQ"))
               ),
               tabPanel(title = "Development",
-                  h4("Known issues & bugs"),
+                  h4("Known issues, bugs, & future features"),
                   column(12,
                          bs_accordion(id = "dev_info") %>%
                          bs_set_opts(panel_type = "primary", use_heading_link = TRUE) %>%
-                         bs_append(title = "App",
+                         bs_append(title = "App issues",
                             content = tags$div(HTML("
                                       <ul>
-                                      <li>External database links fail on single gene lookup if search returnlength = 0</li>
+                                      <li>External database links fail on single gene lookup if search return length = 0</li>
                                       <li>Plotly graph - selection of some sample points results in no info - ERROR:length of 'dimnames' [2] not equal to array extent</li>
                                       <li>Gene & Pos searching alternates between only rendering table and full page when same, reflitering or searching for a new gene</li>
                                       <li>Session occasionally hangs on empty table return - might be resolved?</li>
                                       <li>Gene fields with comma seperated entries may extend tables outside page bounderies if too long</li>
                                       <li>Site info row names out of order</li>
-                                      <li>Tooltips for donught plots state data undefined as soruce</li>
-                                      <li>GENE SEARCH ERROR: Warning in gene_info$GENE == unique(val_gene()$GENE) :longer object length is not a multiple of shorter object length</li>
+                                      <li>Tooltips for donught plots state data undefined as source</li>
                                       <li>Missing/empty value handling for plots - if no fs for exmaple, then data is misaligned in json - change to sum() not table()</li>
                                       <li>Filtering using 'including intronic' occasionally makes the sample-AF plot render below 0</li>
-                                      <li>Transcript table renders as empty if data is missing - Requires investigation</li>
+                                      <li>Transcript returns duplicated columns if empty or missing values on site-specific page</li>
+                                      <li>Memory utilistion and minor memory leak on repeated loading</li>
                                       </ul>
                                       "))) %>%
-                         bs_append(title = "Pre-processing",
+                         bs_append(title = "Pre-processing issues",
                             content = tags$div(HTML("
                                       <ul>
                                       <li>1k genomes is incorrectly named as 'G1KG'</li>
@@ -763,10 +765,13 @@ ui = fluidPage(theme = shinytheme("flatly"),
                             content = tags$div(HTML("
                                       <ul>
                                       <li>Colour schemes inprovements</li>
+                                      <li>No placeholders</li>
+                                      <li>Links between tables - e.g. clickable rsIDs to site-specific page</li>
                                       <li>Statistical testing metrics - fishers/Burden/etc</li>
                                       <li>Data download buttons for all pages</li>
                                       <li>Tooltips and help icons for search fields, filters and table headers</li>
-                                      <li>Oncogene like plotting for sample sets</li>
+                                      <li>Oncoprint like plotting for sample sets</li>
+                                      <li>Additional metrics for comparison page</li>
                                       <li>HET/HOM call flag for site-specifc page & sample page data table</li>
                                       <li>Support for comma-sv in clinvar table on site panel with multiple entries</li>
                                       </ul>
