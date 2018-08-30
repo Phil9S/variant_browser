@@ -44,15 +44,15 @@ library(markdown)
 
 #### External data ####
 #variant_data <- read.table(file = "test_variant_data.txt", header = TRUE, sep = "\t")
-load("www/2018-05-21-db_cohort_data.RData")
+load("www/db_cohortdata.RData")
 variant_data <- cohort_list
 rm(cohort_list)
-sample_data <- read.table(file = "www/2018-05-21-db_sample_data.txt", header = TRUE, sep = "\t")
+sample_data <- read.table(file = "www/sample_data.final.info", header = TRUE, sep = "\t")
 gene_data <- read.table(file = "www/gene_ids_reference.tsv", header = TRUE, sep = "\t",stringsAsFactors = F)
 gene_info <- read.table(file = "www/gene_info_formatted.tsv", header = TRUE, sep = "\t",quote = "",stringsAsFactors = F)
 
-load("www/admixture_pop.RData")
-load("www/pca_pop.RData")
+load("www/db_admixture.RData")
+load("www/db_pca.RData")
 
 #### external non-session server functions and varibales ####
 # 
@@ -137,7 +137,7 @@ var_pheno_json <- toJSON(sample_phenoJSON)
 
 ## Main page plot JSON
 var_counts <- data.frame(samples=vector(),vars=vector(),cohort=vector())
-for(i in 2:length(variant_data)){
+for(i in 1:length(variant_data)){
 var_counts_sample <- apply(variant_data[[i]][42:ncol(variant_data[[i]])],2,function(x) length(x[x == 1 | x == 2]))
 var_counts <- rbind.data.frame(var_counts,data.frame(samples=c(names(var_counts_sample)),
                                                   variants=c(as.numeric(var_counts_sample)),
@@ -1766,14 +1766,19 @@ output$single_gene_panel_desc <- renderText({as.character(gene_info$Gene.descrip
     session$sendCustomMessage("CohortConseqjson",cohort_conseq_JSON)
   })
 #### Population functions ####
-  admixJSON <- toJSON(data.json)
-  session$sendCustomMessage("admixJSON",admixJSON)
+  observe({
+    admixDAT <- as.data.frame(admixture[names(admixture) == "Duke_hg38"],row.names = NULL,stringsAsFactors = F)
+    colnames(admixDAT) <- admixDAT[1,]
+    admixDAT <- admixDAT[-1,]
+    admixJSON <- toJSON(admixDAT,dataframe = 'column')
+    session$sendCustomMessage("admixJSON",admixJSON)
+  })
   
-  pca <- data.merge
-  pca[,c(2:6)] <- apply(pca[,c(2:6)],2,function(x) (x-min(x))/(max(x)-min(x))+0.05)
-  pca$Super_population <- factor(pca$Super_population,levels = c("Sample","SAS","EUR","EAS","AFR","AMR"))
-
   plotly_out <- reactive({
+        pca <- as.data.frame(pca_data[names(pca_data) == input$pop_select])
+        colnames(pca) <- c("sample","PC1","PC2","PC3","PC4","PC5","Super_population")
+        pca[,c(2:6)] <- apply(pca[,c(2:6)],2,function(x) (x-min(x))/(max(x)-min(x))+0.05)
+        pca$Super_population <- factor(pca$Super_population,levels = c("Sample","SAS","EUR","EAS","AFR","AMR"))
    
         if(input$pca == "PC1 vs. PC2 (Population)"){
             pca <- pca[colnames(pca) %in% c("sample","PC1","PC2","Super_population")]
