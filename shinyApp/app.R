@@ -63,7 +63,7 @@ load("www/db_pca.RData")
 #                   "AA","CLINVAR","DISEASE","COSMIC_ID","COSMIC_COUNTS")
 
 main_table <- c("CHR","POS","rsID","REF","ALT","GENE","CONSEQ","TRANSCRIPT","EXON","DNA",
-                "AA","G1KG_all","ExAC_ALL","INT_freq","MISS_rate","SIFT","POLYP","CADD","MEAN_RD")
+                "AA","1Kg_all","ExAC_ALL","INT_freq","MISS_rate","SIFT","POLYP","CADD","MEAN_RD")
 
 sitreinfo_cols <- c("rsID","REF","ALT","QUAL","FUNC","GENE","CONSEQ","MEAN_RD")
 
@@ -71,7 +71,7 @@ siteconseq_cols <- c("SIFT","POLYP","POLYP_VAR","LRT","MUT_TASTER","MUT_ASSESSOR
 
 siteclinc_cols <- c("CLINVAR","DISEASE")
 
-siterarity_cols <- c("INT_freq","G1KG_all","ExAC_ALL","ExAC_NFE","ExAC_FIN","ExAC_AFR","ExAC_AMR","ExAC_EAS","ExAC_OTH","ExAC_SAS")
+siterarity_cols <- c("INT_freq","1Kg_all","ExAC_ALL","ExAC_NFE","ExAC_FIN","ExAC_AFR","ExAC_AMR","ExAC_EAS","ExAC_OTH","ExAC_SAS")
 
 mut_types <- c("A>C","A>G","A>T","C>A","C>G","C>T","G>A","G>C","G>T","T>A","T>C","T>G")
 
@@ -665,12 +665,12 @@ ui = fluidPage(theme = shinytheme("flatly"),
               column(6,withSpinner(plotlyOutput("pca",height = "420px"),type = 4,color = "#95a5a6")),
               column(2,selectInput(inputId = "pca",
                                     label = "Component",
-                                    choices = c("PC1 vs. PC2 (Population)",
+                                    choices = c("PC1 vs. PC2",
                                                 "PC2 vs. PC3",
                                                 "PC3 vs. PC4",
                                                 "PC4 vs. PC5"),
                                     multiple = F,
-                                    selected = "PC1 vs. PC2 (Population)"),
+                                    selected = "PC1 vs. PC2"),
                        tags$hr(),
                        tableOutput("pca_click"), style = "display: inline; align: center;")
               ),
@@ -929,7 +929,7 @@ hide(id = "comp_tabs")
   val_cord <- eventReactive(input$but_pos, {
     shiny::validate(
       need(grepl(pattern = "(^chr([XY]|[1-9]|1[0-9]|2[0-2])|([XY]|^[1-9]|^1[0-9]|^2[0-2])):[0-9]+(-[0-9]+)?|(^rs[0-9]+)", input$pos),
-           message = "Please enter a valid chromosome position")
+           message = "Please enter a valid chromosome position or rsID")
           ## message passed if it looks weird or malformed e.g. contains letters
     )
     ##passes input value if no problem
@@ -957,7 +957,7 @@ hide(id = "comp_tabs")
                   & as.numeric(datC$POS) <= as.numeric(stop1),]
           }
       
-      datC <- datC[datC$G1KG_all <= input$X1000G_rarity_pos & datC$ExAC_ALL <= input$Exac_rarity_pos,]
+      datC <- datC[datC$`1Kg_all` <= input$X1000G_rarity_pos & datC$ExAC_ALL <= input$Exac_rarity_pos,]
       
       ########### INTRONIC   
       if(input$intron_cord_pos == FALSE){
@@ -1033,7 +1033,7 @@ hide(id = "comp_tabs")
         if(input$main_panel != "single_gene_panel"){updateTabsetPanel(session, "main_panel", selected = "single_gene_panel")}
       }
       
-      datG <- datG[datG$G1KG_all <= input$X1000G_rarity_gene & datG$ExAC_ALL <= input$Exac_rarity_gene,]
+      datG <- datG[datG$`1Kg_all` <= input$X1000G_rarity_gene & datG$ExAC_ALL <= input$Exac_rarity_gene,]
       ########### INTRONIC   
       if(input$intron_cord_gene == FALSE){
         datG <- datG[which(datG$CONSEQ != "intronic"),]
@@ -1084,7 +1084,7 @@ hide(id = "comp_tabs")
     ##filter table for input sample
     datS <- datS[datS[,val_sample()] == 1 | datS[,val_sample()] == 2 ,]
     
-    datS <- datS[datS$G1KG_all <= input$X1000G_rarity_sample & datS$ExAC_ALL <= input$Exac_rarity_sample,]
+    datS <- datS[datS$`1Kg_all` <= input$X1000G_rarity_sample & datS$ExAC_ALL <= input$Exac_rarity_sample,]
     ########### INTRONIC   
     if(input$intron_cord_sample == FALSE){
       datS <- datS[which(datS$CONSEQ != "intronic"),]
@@ -1253,6 +1253,7 @@ output$table_sample <- renderDataTable({
   }
 }) 
 
+#### Single gene page ####
 output$table_single_gene <- renderDataTable({
   if(nrow(val_gene()) == 0){
     datatable(val_gene(),rownames = FALSE,
@@ -1476,7 +1477,7 @@ observe({
     I <- c('Internal',rep.int(0,5))
     sampleRare_plotJSON <- toJSON(rbind(K,E,I))
   } else {
-    K <- as.data.frame(table(cut(data_sample()$G1KG_all,seq.int(0,0.05,0.01),include.lowest = T)))
+    K <- as.data.frame(table(cut(data_sample()$`1Kg_all`,seq.int(0,0.05,0.01),include.lowest = T)))
     K <- c('1KG',as.numeric(K$Freq))
     E <- as.data.frame(table(cut(data_sample()$ExAC_ALL,seq.int(0,0.05,0.01),include.lowest = T)))
     E <- c('ExAC',as.numeric(E$Freq))
@@ -1780,7 +1781,7 @@ output$single_gene_panel_desc <- renderText({as.character(gene_info$Gene.descrip
         pca[,c(2:6)] <- apply(pca[,c(2:6)],2,function(x) (x-min(x))/(max(x)-min(x))+0.05)
         pca$Super_population <- factor(pca$Super_population,levels = c("Sample","SAS","EUR","EAS","AFR","AMR"))
    
-        if(input$pca == "PC1 vs. PC2 (Population)"){
+        if(input$pca == "PC1 vs. PC2"){
             pca <- pca[colnames(pca) %in% c("sample","PC1","PC2","Super_population")]
         } else if(input$pca == "PC2 vs. PC3"){
             pca <- pca[colnames(pca) %in% c("sample","PC2","PC3","Super_population")]
@@ -1870,7 +1871,7 @@ output$single_gene_panel_desc <- renderText({as.character(gene_info$Gene.descrip
       
       return(sprintf("Select a point in the PCA to display sample information"))
     } else {
-      if(input$pca == "PC1 vs. PC2 (Population)"){
+      if(input$pca == "PC1 vs. PC2"){
         pca <- pca[colnames(pca) %in% c("sample","PC1","PC2","Super_population")]
       } else if(input$pca == "PC2 vs. PC3"){
         pca <- pca[colnames(pca) %in% c("sample","PC2","PC3","Super_population")]
