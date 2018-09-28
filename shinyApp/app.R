@@ -1002,9 +1002,14 @@ hide(id = "comp_tabs")
     }
   })
   
-  val_gene <- eventReactive(input$but_gene, {
+  geneIn <- eventReactive(input$but_gene, {
       gene_list <- unique(unlist(strsplit(input$gene,",",fixed = TRUE)))
       gene_list <- toupper(gene_list)
+      return(gene_list)
+  })
+  
+  val_gene <- eventReactive(input$but_gene, {
+      gene_list <- geneIn()
       datG <- variant_data[[which(names(variant_data) == input$cohort)]]
       if(length(gene_list) >= 2){
         no_list <- gene_list[!gene_list %in% datG$GENE]
@@ -1286,10 +1291,10 @@ output$table_single_gene <- renderDataTable({
                 )
               )
     ) %>% 
-      # formatStyle('CADD',
-      #             color = styleInterval(seq.int(1,max(val_gene()$CADD,na.rm = TRUE),1),colfuncCADD(max(seq.int(1,max(val_gene()$CADD,na.rm = TRUE)+1,1)))),
-      #             fontWeight = 'bold'
-      # ) %>% 
+      formatStyle('CADD',
+                  color = styleInterval(seq.int(1,max(val_gene()$CADD,na.rm = TRUE),1),colfuncCADD(max(seq.int(1,max(val_gene()$CADD,na.rm = TRUE)+1,1)))),
+                  fontWeight = 'bold'
+      ) %>%
       formatStyle(
         'SIFT',
         color = styleEqual(sort(unique(val_gene()$SIFT)),colfuncCADD(length(sort(unique(val_gene()$SIFT))))),
@@ -1302,9 +1307,10 @@ output$table_single_gene <- renderDataTable({
       )
   }  
 })
-
-output$single_gene_panel_ext <- renderDataTable({datatable(data.frame(Database=c("Genecards","Ensembl","HGNC","NCBI","Uniprot","OMIM"),
-                                                                         Link=gene_links(unique(val_gene()$GENE))),
+##input$gene not effective fix - results in auto updating on runtime
+output$single_gene_panel_ext <- renderDataTable({
+    datatable(data.frame(Database=c("Genecards","Ensembl","HGNC","NCBI","Uniprot","OMIM"),
+                                                                         Link=gene_links(geneIn())),
                                                               class = 'compact',
                                                               colnames = c("",""),
                                                               selection = 'none',
@@ -1321,10 +1327,10 @@ output$single_gene_panel_ext <- renderDataTable({datatable(data.frame(Database=c
                                                                       'Database',
                                                                       fontWeight = 'bold'
                                                                     )
-                                                                  })
-
+  })
+  
 output$single_gene_panel_info <- renderDataTable({datatable(data.frame(Database=c("Chromosome","Start (bp)","End (bp)","Cytoband","Strand","Gene type"),
-                                                                       Info=as.character(gene_info[gene_info$Gene.name == unique(val_gene()$GENE),][c(4,5,6,2,3,7)])),
+                                                                       Info=as.character(gene_info[gene_info$Gene.name == geneIn(),][c(4,5,6,2,3,7)])),
                                                             class = 'compact',
                                                             colnames = c("",""),
                                                             selection = 'none',
@@ -1358,7 +1364,7 @@ observe({
                         choices = as.character(sample_data$SAMPLE_ID[sample_data$DATA_ID %in% names(site_VAL[42:ncol(site_VAL)][which(site_VAL[42:ncol(site_VAL)] == 1 | site_VAL[42:ncol(site_VAL)] == 2)])])
       )
 
-      output$site_sample_table <- renderDataTable({datatable(as.data.frame(sample_data[sample_data$SAMPLE_ID == input$site_sample_select,][c(1,4:8)]),
+      output$site_sample_table <- renderDataTable({datatable(as.data.frame(sample_data[sample_data$SAMPLE_ID == input$site_sample_select,][c(3,1,2,6:8)]),
                                                                class = 'compact',
                                                                selection = 'none',
                                                                rownames = FALSE,
@@ -1495,8 +1501,8 @@ output$id_sample <- renderText({paste(sample_data$SAMPLE_ID[sample_data$DATA_ID 
 output$id_gene <- renderText({label_gene()}) 
 output$sampleid_table <- renderText({paste("Non-reference samples in ",sample_data$SAMPLE_ID[sample_data$DATA_ID == val_sample()])})
 
-output$single_gene_panel_title <- renderText({unique(val_gene()$GENE)})
-output$single_gene_panel_desc <- renderText({as.character(gene_info$Gene.description[gene_info$Gene.name == unique(val_gene()$GENE)])})
+output$single_gene_panel_title <- renderText({geneIn()})
+output$single_gene_panel_desc <- renderText({as.character(gene_info$Gene.description[gene_info$Gene.name == geneIn()])})
 
 #### Save mechanism ####
 ## review save mechanisms
