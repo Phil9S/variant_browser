@@ -482,3 +482,44 @@ Shiny.addCustomMessageHandler("admixJSON",function(admixJSON){
   });
 
 })
+
+Shiny.addCustomMessageHandler("GtexPlot",function(GtexPlot){
+  
+  var mainDataset = GtexPlot
+  
+  var chart13 = c3.generate({
+      bindto: '#plotGtexData',
+      padding: {
+        top: 0,
+        right: 40,
+        bottom: 0,
+        left: 40,
+      },
+      data: {
+          x: 'Tissue',
+          columns: mainDataset,
+          type: 'bar'
+      },
+      bar: {
+      width: {
+            ratio: 0.9 
+        }
+      },
+      legend: {
+        hide: true
+      },
+      axis: {
+          x: {
+          type: 'category',
+          tick: {
+                rotate: 35,
+                multiline: false,
+            },
+          },
+          y: {
+            label: 'TPM expression level'
+        },
+      }
+  });
+
+})
