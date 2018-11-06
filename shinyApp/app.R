@@ -50,6 +50,8 @@ rm(cohort_list)
 sample_data <- read.table(file = "www/sample_data.final.info", header = TRUE, sep = "\t")
 gene_data <- read.table(file = "www/gene_ids_reference.tsv", header = TRUE, sep = "\t",stringsAsFactors = F)
 gene_info <- read.table(file = "www/gene_info_formatted.tsv", header = TRUE, sep = "\t",quote = "",stringsAsFactors = F)
+gtex_data <- unique(read.table(file = "www/GTEx_gene_data.txt", header = TRUE, sep = "\t",stringsAsFactors = F))
+gtex_data <- gtex_data[!duplicated(gtex_data$Description),]
 
 load("www/db_admixture.RData")
 load("www/db_pca.RData")
@@ -422,7 +424,12 @@ ui = fluidPage(theme = shinytheme("flatly"),
                          tags$hr(),
                          fluidRow(
                          div(withSpinner(dataTableOutput(outputId = "table_single_gene"),type = 4,color = "#95a5a6"),style = "font-size: 80%; width: 100%")
-                         )
+                         ),
+                         h4("GTEx tissue expression data"),
+                         tags$hr(),
+                         fluidRow(tags$div(id="plotGtexData")),
+                         h4(""),
+                         tags$hr()
                 ),
                 tabPanel("Site", value = "site_panel",
                         h2(textOutput(outputId = "site_title")),
@@ -1352,13 +1359,13 @@ output$single_gene_panel_info <- renderDataTable({datatable(data.frame(Database=
 #### Site specific page rendering ####
 observe({
   ## checking only one row exists for data_cord()
-  if(nrow(data_cord()) == 1){
+  if(nrow(data_cord()) == 1 & input$cohort != "None"){
     ## Panel switching to site panel
     eventReactive(input$but_pos, {if(input$main_panel != "site_panel"){updateTabsetPanel(session, "main_panel", selected = "site_panel")}
     })
       ## Retrieving site info from unfiltered data - by chr and pos - maybe add ALT as a value for multiallelic support
       site_VAL <- variant_data[[which(names(variant_data) == input$cohort)]][variant_data[[which(names(variant_data) == input$cohort)]]$CHR == data_cord()$CHR & variant_data[[which(names(variant_data) == input$cohort)]]$POS == data_cord()$POS,]
-      
+    
       updateSelectInput(session,
                         inputId = "site_sample_select",
                         choices = as.character(sample_data$SAMPLE_ID[sample_data$DATA_ID %in% names(site_VAL[42:ncol(site_VAL)][which(site_VAL[42:ncol(site_VAL)] == 1 | site_VAL[42:ncol(site_VAL)] == 2)])])
@@ -1493,7 +1500,21 @@ observe({
   }
   session$sendCustomMessage("SampleRarejson",sampleRare_plotJSON)
 })
-
+## Single gene page GTEx
+observe({
+    gtex_filt <- gtex_data[gtex_data$Description == geneIn(),]
+    gtex_filt <- gtex_filt[,-1]
+    gtex_filt <- rbind(colnames(gtex_filt),gtex_filt[1,])
+    rownames(gtex_filt) <- NULL
+    colnames(gtex_filt) <- NULL
+    gtex_filt <- cbind(c("Tissue","TPM"),gtex_filt)
+    gtex_filt[1,-1] <- gsub(pattern = "\\.\\..",replacement = " ",gtex_filt[1,-1])
+    gtex_filt[1,-1] <- gsub(pattern = "Brain ",replacement = "",gtex_filt[1,-1])
+    gtex_filt[1,-1] <- gsub(pattern = "Cells ",replacement = "",gtex_filt[1,-1])
+    gtex_filt[1,-1] <- gsub(pattern = "\\.",replacement = " ",gtex_filt[1,-1])
+    gtex_JSON <- toJSON(gtex_filt, dataframe = 'values')
+    session$sendCustomMessage("GtexPlot",gtex_JSON)
+})
 #### Text rendering #### 
 
 output$id_cord <- renderText({paste("Search results for ", cord_label())})
@@ -1774,10 +1795,10 @@ output$single_gene_panel_desc <- renderText({as.character(gene_info$Gene.descrip
   })
 #### Population functions ####
   observe({
-    admixDAT <- as.data.frame(admixture[names(admixture) == "Duke_hg38"],row.names = NULL,stringsAsFactors = F)
-    colnames(admixDAT) <- admixDAT[1,]
-    admixDAT <- admixDAT[-1,]
-    admixJSON <- toJSON(admixDAT,dataframe = 'column')
+    admixDAT <- as.data.frame(admixture[names(admixture) == input$pop_select],row.names = NULL,stringsAsFactors = F)
+    rownames(admixDAT) <- NULL
+    colnames(admixDAT) <- NULL
+    admixJSON <- toJSON(admixDAT,dataframe = 'values')
     session$sendCustomMessage("admixJSON",admixJSON)
   })
   
