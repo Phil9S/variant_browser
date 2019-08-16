@@ -1,3 +1,39 @@
+// hsl to hex function for pathogenicity plot colors
+var hslTohex = function (h, s, l) {
+  h /= 360;
+  s /= 100;
+  l /= 100;
+  let r, g, b;
+  if (s === 0) {
+    r = g = b = l; // achromatic
+  } else {
+    const hue2rgb = (p, q, t) => {
+      if (t < 0) t += 1;
+      if (t > 1) t -= 1;
+      if (t < 1 / 6) return p + (q - p) * 6 * t;
+      if (t < 1 / 2) return q;
+      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+      return p;
+    };
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+    r = hue2rgb(p, q, h + 1 / 3);
+    g = hue2rgb(p, q, h);
+    b = hue2rgb(p, q, h - 1 / 3);
+  }
+  const toHex = x => {
+    const hex = Math.round(x * 255).toString(16);
+    return hex.length === 1 ? '0' + hex : hex;
+  };
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+// hsl calculation for pathogenicity plot colors
+var hslcalc = function (val){
+    //value from 0 to 1
+    var hue=((1-val)*120);
+    return [hue,75,50];
+}
+
 Shiny.addCustomMessageHandler("cohortjson",function(cohort){
   
   var Dataset = cohort;
@@ -7,7 +43,7 @@ Shiny.addCustomMessageHandler("cohortjson",function(cohort){
   Dataset.forEach(function(e) {
     sites.push(e.name);
     data[e.name] = e.total;
-  })
+  });
   
   var chart = c3.generate({
     bindto: '#plotCohort',
@@ -36,7 +72,7 @@ Shiny.addCustomMessageHandler("cohortjson",function(cohort){
         }
     }
   });
-})
+});
 
 Shiny.addCustomMessageHandler("agejson",function(age){
     
@@ -76,7 +112,7 @@ Shiny.addCustomMessageHandler("agejson",function(age){
         }
     }
   });
-})
+});
 
 Shiny.addCustomMessageHandler("sexjson",function(sex){
     
@@ -87,7 +123,7 @@ Shiny.addCustomMessageHandler("sexjson",function(sex){
     Dataset.forEach(function(e) {
       sites.push(e.name);
       data[e.name] = e.total;
-    })
+    });
       
     var chart2 = c3.generate({
     bindto: '#plotSex',
@@ -108,7 +144,7 @@ Shiny.addCustomMessageHandler("sexjson",function(sex){
         show: false
     },
     color: {
-        pattern: ['#d99fb8', '#3182bd', '#D3D3D3']
+        pattern: ['#D3D3D3', '#d99fb8', '#3182bd']
     },
     tooltip: {
       format: {
@@ -116,7 +152,7 @@ Shiny.addCustomMessageHandler("sexjson",function(sex){
         }
     }
   });
-})
+});
 
 Shiny.addCustomMessageHandler("ethnojson",function(ethno){
     
@@ -127,7 +163,7 @@ Shiny.addCustomMessageHandler("ethnojson",function(ethno){
     Dataset.forEach(function(e) {
       sites.push(e.name);
       data[e.name] = e.total;
-    })
+    });
     
     var chart3 = c3.generate({
     bindto: '#plotEthno',
@@ -156,11 +192,11 @@ Shiny.addCustomMessageHandler("ethnojson",function(ethno){
         }
     }
   });
-}) 
+});
 
 Shiny.addCustomMessageHandler("pheno_barjson",function(phenoPlot){    
   
-  var mainDataset = phenoPlot
+  var mainDataset = phenoPlot;
   
   var chart4 = c3.generate({
     bindto: '#plotPheno',
@@ -200,12 +236,11 @@ Shiny.addCustomMessageHandler("pheno_barjson",function(phenoPlot){
   }
 }
 });
-  
-})
+});
 
 Shiny.addCustomMessageHandler("SampleVarjson",function(SampleVarPlot){
   
-  var mainDataset = SampleVarPlot
+  var mainDataset = SampleVarPlot;
   
   var chart6 = c3.generate({
     bindto: '#plotSampleVars',
@@ -248,11 +283,11 @@ Shiny.addCustomMessageHandler("SampleVarjson",function(SampleVarPlot){
       }
     }
   });
-})
+});
 
 Shiny.addCustomMessageHandler("SampleMutjson",function(SampleMutPlot){
   
-  var mainDataset = SampleMutPlot
+  var mainDataset = SampleMutPlot;
   
   var chart7 = c3.generate({
     bindto: '#plotSampleMut',
@@ -294,13 +329,13 @@ Shiny.addCustomMessageHandler("SampleMutjson",function(SampleMutPlot){
       }
     }
   });
-})
+});
 
 Shiny.addCustomMessageHandler("SampleRarejson",function(SampleRarePlot){
   
-  var labels = ["< 0.01","0.01 - 0.02","0.02 - 0.03","0.03 - 0.04","0.04 - 0.05"]
+  var labels = ["< 0.01","0.01 - 0.02","0.02 - 0.03","0.03 - 0.04","0.04 - 0.05"];
   
-  var mainDataset = SampleRarePlot
+  var mainDataset = SampleRarePlot;
   
   var chart8 = c3.generate({
       bindto: '#plotSampleRare',
@@ -334,11 +369,11 @@ Shiny.addCustomMessageHandler("SampleRarejson",function(SampleRarePlot){
         }
       }
   });
-})
+});
 
 Shiny.addCustomMessageHandler("CohortMutjson",function(CohortMutjson){
   
-  var mainDataset = CohortMutjson
+  var mainDataset = CohortMutjson;
   
   var chart9 = c3.generate({
       bindto: '#plotCohortmut',
@@ -367,12 +402,11 @@ Shiny.addCustomMessageHandler("CohortMutjson",function(CohortMutjson){
         },
       }
   });
-
-})
+});
 
 Shiny.addCustomMessageHandler("CohortTsTvjson",function(CohortTsTvjson){
   
-  var mainDataset = CohortTsTvjson
+  var mainDataset = CohortTsTvjson;
   
   var chart10 = c3.generate({
       bindto: '#plotCohortTstv',
@@ -398,11 +432,11 @@ Shiny.addCustomMessageHandler("CohortTsTvjson",function(CohortTsTvjson){
           }
       }
   });
-})
+});
 
 Shiny.addCustomMessageHandler("CohortConseqjson",function(CohortConseqjson){
   
-  var mainDataset = CohortConseqjson
+  var mainDataset = CohortConseqjson;
   
   var chart11 = c3.generate({
       bindto: '#plotCohortConseq',
@@ -432,13 +466,12 @@ Shiny.addCustomMessageHandler("CohortConseqjson",function(CohortConseqjson){
         rotated: true
       }
   });
-
-})
+});
 
 
 Shiny.addCustomMessageHandler("admixJSON",function(admixJSON){
   
-  var mainDataset = admixJSON
+  var mainDataset = admixJSON;
   
   var chart12 = c3.generate({
       bindto: '#plotadmixJSON',
@@ -480,12 +513,11 @@ Shiny.addCustomMessageHandler("admixJSON",function(admixJSON){
           }
       }
   });
-
-})
+});
 
 Shiny.addCustomMessageHandler("GtexPlot",function(GtexPlot){
   
-  var mainDataset = GtexPlot
+  var mainDataset = GtexPlot;
   
   var chart13 = c3.generate({
       bindto: '#plotGtexData',
@@ -521,5 +553,115 @@ Shiny.addCustomMessageHandler("GtexPlot",function(GtexPlot){
         },
       }
   });
+});
 
-})
+Shiny.addCustomMessageHandler("sitedmgjson",function(SiteDmgJson){
+  
+  var mainDataset = SiteDmgJson;
+  
+  var chart14 = c3.generate({
+      bindto: '#plotSiteDamage',
+      padding: {
+        top: 0,
+        right: 50,
+        bottom: 0,
+        left: 50,
+      },
+      data: {
+          x: 'Consequence',
+          columns: mainDataset,
+          type: 'bar',
+          colors: {
+            value: function(d) {
+              var y = hslcalc(d.value);
+              var h = hslTohex(y[0],y[1],y[2])
+              return h;
+            }
+          }
+      },
+      bar: {
+        width: {
+            ratio: 0.9 
+        }
+      },
+      legend: {
+        hide: true
+      },
+      axis: {
+          x: {
+          type: 'category',
+          tick: {
+                rotate: 35,
+                multiline: false,
+            },
+          },
+          y: {
+            label: {
+              text : 'Normalised pathogenicity',
+              position : 'outer-center'
+            }
+        },
+      },
+      grid: {
+        y: {
+            lines: [
+                {value: 0.5, text: 'Mean pathogenicity'}
+            ]
+        }
+    }
+  });
+});
+
+Shiny.addCustomMessageHandler("sitequaljson",function(SiteQualJson){
+  
+  var mainDataset = SiteQualJson[0];
+  var lineVal = parseFloat(SiteQualJson[1]);
+  console.log(lineVal);
+  var chart15 = c3.generate({
+      bindto: '#plotSiteQual',
+      padding: {
+        top: 0,
+        right: 20,
+        bottom: 0,
+        left: 75,
+      },
+      data: {
+          x: 'Bin',
+          columns: mainDataset,
+          type: 'area-spline',
+      },
+      bar: {
+        width: {
+            ratio: 1 
+        }
+      },
+      legend: {
+        hide: true
+      },
+      axis: {
+          x: {
+          type: 'indexed',
+          tick: {
+                rotate: 35,
+                multiline: false,
+                culling: {
+                  max: 15
+                }
+            },
+          },
+          y: {
+            label: {
+              text : 'Count',
+              position : 'outer-center'
+            }
+        },
+      },
+      grid: {
+        x: {
+            lines: [
+                {value: lineVal, text: 'Site value', position: 'start'}
+            ]
+        }
+    }
+  });
+});
