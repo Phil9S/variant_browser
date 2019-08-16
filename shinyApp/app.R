@@ -1,5 +1,4 @@
 library(devtools)
-
 library(jsonlite)
 library(shiny)
 library(shinythemes)
@@ -10,7 +9,7 @@ library(DT)
 library(shinyalert)
 library(htmltools)
 library(bsplus)
-
+library(reshape2)
 library(plotly)
 library(stringr)
 library(markdown)
@@ -39,12 +38,13 @@ library(markdown)
 ## Table header tooltips
 ## Transcript returns duplicated columns if empty on site-specific page
 ## Combine chr and pos in table output for ease of CopyPaste
+## Intronic / synonymous filtering
 
 ## Links in table https://github.com/rstudio/DT/issues/58
 
 #### External data ####
 #variant_data <- read.table(file = "test_variant_data.txt", header = TRUE, sep = "\t")
-load("www/db_cohortdata.RData")
+load("www/db_cohortdata_SUBSET.RData")
 variant_data <- cohort_list
 rm(cohort_list)
 sample_data <- read.table(file = "www/sample_data.final.info", header = TRUE, sep = "\t")
@@ -67,13 +67,29 @@ load("www/db_pca.RData")
 main_table <- c("CHR","POS","rsID","REF","ALT","GENE","CONSEQ","TRANSCRIPT","EXON","DNA",
                 "AA","1Kg_all","ExAC_ALL","INT_freq","MISS_rate","SIFT","POLYP","CADD","MEAN_RD")
 
-sitreinfo_cols <- c("rsID","REF","ALT","QUAL","FUNC","GENE","CONSEQ","MEAN_RD")
+full_table <- c("CHR","POS","rsID","REF","ALT","QUAL","FILTER","ABHet","ABHom","AN","BaseQRankSum",
+             "ExcessHet","HaplotypeScore","InbreedingCoeff","MQ","MQRankSum","ReadPosRankSum","FUNC",
+             "GENE","CONSEQ","1Kg_all","ExAC_ALL","ExAC_AFR","ExAC_AMR","ExAC_EAS","ExAC_FIN",
+             "ExAC_NFE","ExAC_OTH","ExAC_SAS","SIFT","POLYP","POLYP_VAR","LRT","MUT_TASTER","MUT_ASSESSOR",
+             "FATHMM","PROVEAN","VEST3","METASVM","METALR","MCAP","CADD","DANN","FATHMMMKL","GENOCANYON",
+             "INT_FITCONS","GERP","PHYLOP100","PHYLOP20","PHAST100","PHAST20","SIPHY29","INTERPRO",
+             "COSMIC","HET_val","HOM_val","HET_rate","HOM_rate","MISS_rate","INT_freq","MEAN_RD",
+             "TRANSCRIPT","EXON","DNA","AA","CLINVAR","DISEASE")
 
-siteconseq_cols <- c("SIFT","POLYP","POLYP_VAR","LRT","MUT_TASTER","MUT_ASSESSOR","FATHMM","PROVEAN","CADD")
+sitreinfo_cols <- c("rsID","REF","ALT","FILTER","FUNC","GENE","CONSEQ")
+
+siteconseq_cols <- c("SIFT","POLYP","POLYP_VAR","LRT","MUT_TASTER","MUT_ASSESSOR","FATHMM",
+                     "PROVEAN","CADD","VEST3","METASVM","METALR","MCAP","DANN","FATHMMMKL",
+                     "GENOCANYON","INT_FITCONS","GERP","PHYLOP100","PHYLOP20","PHAST100",
+                     "PHAST20","SIPHY29")
+
+site_quals <- c("QUAL","ABHet","ABHom","BaseQRankSum","ExcessHet","HaplotypeScore",
+                "InbreedingCoeff","MQ","MQRankSum","ReadPosRankSum","MEAN_RD")
 
 siteclinc_cols <- c("CLINVAR","DISEASE")
 
-siterarity_cols <- c("INT_freq","1Kg_all","ExAC_ALL","ExAC_NFE","ExAC_FIN","ExAC_AFR","ExAC_AMR","ExAC_EAS","ExAC_OTH","ExAC_SAS")
+siterarity_cols <- c("INT_freq","1Kg_all","ExAC_ALL","ExAC_NFE","ExAC_FIN","ExAC_AFR",
+                     "ExAC_AMR","ExAC_EAS","ExAC_OTH","ExAC_SAS")
 
 mut_types <- c("A>C","A>G","A>T","C>A","C>G","C>T","G>A","G>C","G>T","T>A","T>C","T>G")
 
@@ -140,7 +156,7 @@ var_pheno_json <- toJSON(sample_phenoJSON)
 ## Main page plot JSON
 var_counts <- data.frame(samples=vector(),vars=vector(),cohort=vector())
 for(i in 1:length(variant_data)){
-var_counts_sample <- apply(variant_data[[i]][42:ncol(variant_data[[i]])],2,function(x) length(x[x == 1 | x == 2]))
+var_counts_sample <- apply(variant_data[[i]][69:ncol(variant_data[[i]])],2,function(x) length(x[x == 1 | x == 2]))
 var_counts <- rbind.data.frame(var_counts,data.frame(samples=c(names(var_counts_sample)),
                                                   variants=c(as.numeric(var_counts_sample)),
                                                   cohort=rep_len(names(variant_data[i]),length.out = length(var_counts_sample)),stringsAsFactors = F))
@@ -454,24 +470,24 @@ ui = fluidPage(theme = shinytheme("flatly"),
                               )
                             )
                           ),
-                          column(4,
-                              h4("PLACEHOLDER")
-                            ),
-                          column(4,
-                              h4("PLACEHOLDER")
-                            )
+                          column(7,offset = 1,
+                              fluidRow(column(8,h4("Quality metric summary")),
+                                       column(3,style='margin-top:-17px',
+                                                     selectInput(inputId = "qual_met",multiple = FALSE, label = "", selected = "QUAL", choices = site_quals)),
+                                       column(width = 1,h4(""))
+                              ),
+                              fluidRow(column(width = 11,tags$div(id="plotSiteQual")),
+                                       column(width = 1,h4(""))
+                              )
+                          )
                         ),
                         h4(""),
-                        tags$hr(),
                         fluidRow(
                           column(12,
                                  h4("Damage prediction"),
-                              wellPanel(
-                                 dataTableOutput(outputId = "site_conseq")
-                              )
+                                 tags$div(id="plotSiteDamage",style = "height:200px;")
                             )
                         ),
-                        tags$hr(),
                         column(8,
                           fluidRow(
                             column(12,
@@ -480,13 +496,13 @@ ui = fluidPage(theme = shinytheme("flatly"),
                           ),
                           wellPanel(
                           fluidRow(
-                            column(6,style = "margin-top: 35.5px",
-                                     column(8,
+                            column(6,
+                                     column(4,
                                             fluidRow(tags$b("Heterozygous Calls:")),
                                             fluidRow(tags$b("Homozygous Calls:")),
                                             fluidRow(tags$b("Missing rate Calls:"))
                                      ),
-                                     column(4,
+                                     column(4,offset = 4,
                                             fluidRow(tags$em(textOutput(outputId = "site_hetv"))),
                                             fluidRow(tags$em(textOutput(outputId = "site_homv"))),
                                             fluidRow(tags$em(textOutput(outputId = "site_miss")))
@@ -497,14 +513,12 @@ ui = fluidPage(theme = shinytheme("flatly"),
                                 column(8,
                                        selectInput(inputId = "site_sample_select", multiple = FALSE, label = "Affected Samples", choices = NULL)
                                       )
-                                    ),
-                              fluidRow(
-                                column(12,
-                                  div(dataTableOutput(outputId = "site_sample_table"),style = "font-size: 85%; width: 100%")
-                                      )
                                     )
                             )
-                          )
+                          ),
+                          fluidRow(
+                                  div(dataTableOutput(outputId = "site_sample_table"),style = "font-size: 85%; width: 100%")
+                                    )
                           ),
                           tags$hr(),
                           fluidRow(
@@ -730,6 +744,8 @@ ui = fluidPage(theme = shinytheme("flatly"),
                   tags$li(tags$a(href="","htmltools")),
                   tags$li(tags$a(href="","bsplus")),
                   tags$li(tags$a(href="","plotly")),
+                  tags$li(tags$a(href="","ggplot2")),
+                  tags$li(tags$a(href="","reshape2")),
                   tags$li(tags$a(href="","stringr")),
                   tags$li(tags$a(href="","markdown"))
                 )
@@ -913,8 +929,11 @@ observe({
 
 
 observeEvent(input$reset, {
-  shinyjs::reset("cohort")
-  updateTabsetPanel(session, "main_panel", selected = "blank_panel")
+  session$reload()
+  # shinyjs::reset("cohort")
+  # updateTabsetPanel(session, "main_panel", selected = "blank_panel")
+  # updateSelectInput(session, inputId = "site_sample_select", choices = NULL)
+  # data_cord <- NULL
 })
 
 hide(id = "main_panel")
@@ -963,37 +982,40 @@ hide(id = "comp_tabs")
                   & as.numeric(datC$POS) >= as.numeric(start1)
                   & as.numeric(datC$POS) <= as.numeric(stop1),]
           }
-      
+      }
       datC <- datC[datC$`1Kg_all` <= input$X1000G_rarity_pos & datC$ExAC_ALL <= input$Exac_rarity_pos,]
-      
-      ########### INTRONIC   
-      if(input$intron_cord_pos == FALSE){
-      datC <- datC[which(datC$CONSEQ != "intronic"),]
-      }
-    
-      if(input$syn_cord_pos == FALSE){
-        datC <- datC[which(datC$CONSEQ != "synonymous"),]
-      }
-      if(input$trunc_cord_pos == TRUE){
-        datC <- datC[datC$CONSEQ == "stopgain" 
-                     | datC$CONSEQ == "frameshift deletion"
-                     | datC$CONSEQ == "frameshift insertion"
-                     | datC$CONSEQ == "stoploss",]
-      }
-      if(input$splice_cord_pos == TRUE){
-        datC <- datC[datC$CONSEQ == "splicing",]
-      }
-    }
-    ##report table to render function
-      datC <- datC[colnames(datC) %in% main_table]
-      datC <- datC[main_table]
-    ##report data back to function
       if(nrow(datC) == 1){
-        if(input$main_panel != "site_panel"){updateTabsetPanel(session, "main_panel", selected = "site_panel")}
+        ## Panel switching to site panel
+        updateTabsetPanel(session, "main_panel", selected = "site_panel")
+        updateSelectInput(session, inputId = "site_transcript_select", choices = unlist(str_split(datC$TRANSCRIPT,",")))
+        # datC <- datC[colnames(datC) %in% full_table]
+        # datC <- datC[full_table]
         return(datC)
       } else {
-        return(datC) 
-      }
+        
+        ########### INTRONIC   
+        if(input$intron_cord_pos == FALSE){
+        datC <- datC[which(datC$CONSEQ != "intronic"),]
+        }
+      
+        if(input$syn_cord_pos == FALSE){
+          datC <- datC[which(datC$CONSEQ != "synonymous"),]
+        }
+        if(input$trunc_cord_pos == TRUE){
+          datC <- datC[datC$CONSEQ == "stopgain" 
+                       | datC$CONSEQ == "frameshift deletion"
+                       | datC$CONSEQ == "frameshift insertion"
+                       | datC$CONSEQ == "stoploss",]
+        }
+        if(input$splice_cord_pos == TRUE){
+          datC <- datC[datC$CONSEQ == "splicing",]
+        }
+      ##report table to render function
+      datC <- datC[colnames(datC) %in% main_table]
+      datC <- datC[main_table]
+      ##report data back to function
+      return(datC) 
+    }  
   })
 
 #### GENE SEARCH ####
@@ -1299,7 +1321,7 @@ output$table_single_gene <- renderDataTable({
               )
     ) %>% 
       formatStyle('CADD',
-                  color = styleInterval(seq.int(1,max(val_gene()$CADD,na.rm = TRUE),1),colfuncCADD(max(seq.int(1,max(val_gene()$CADD,na.rm = TRUE)+1,1)))),
+                  color = styleEqual(sort(unique(val_gene()$CADD)),colfuncCADD(length(sort(unique(val_gene()$CADD))))),
                   fontWeight = 'bold'
       ) %>%
       formatStyle(
@@ -1357,103 +1379,120 @@ output$single_gene_panel_info <- renderDataTable({datatable(data.frame(Database=
                                                             })
 
 #### Site specific page rendering ####
-observe({
-  ## checking only one row exists for data_cord()
-  if(nrow(data_cord()) == 1 & input$cohort != "None"){
-    ## Panel switching to site panel
-    eventReactive(input$but_pos, {if(input$main_panel != "site_panel"){updateTabsetPanel(session, "main_panel", selected = "site_panel")}
-    })
-      ## Retrieving site info from unfiltered data - by chr and pos - maybe add ALT as a value for multiallelic support
-      site_VAL <- variant_data[[which(names(variant_data) == input$cohort)]][variant_data[[which(names(variant_data) == input$cohort)]]$CHR == data_cord()$CHR & variant_data[[which(names(variant_data) == input$cohort)]]$POS == data_cord()$POS,]
-    
-      updateSelectInput(session,
-                        inputId = "site_sample_select",
-                        choices = as.character(sample_data$SAMPLE_ID[sample_data$DATA_ID %in% names(site_VAL[42:ncol(site_VAL)][which(site_VAL[42:ncol(site_VAL)] == 1 | site_VAL[42:ncol(site_VAL)] == 2)])])
-      )
+output$site_sample_table <- renderDataTable({
+  updateSelectInput(session,
+                    inputId = "site_sample_select",
+                    choices = as.character(sample_data$SAMPLE_ID[sample_data$DATA_ID %in% names(data_cord()[69:ncol(data_cord())][which(data_cord()[69:ncol(data_cord())] == 1 | data_cord()[69:ncol(data_cord())] == 2)])])
+  )
+  datatable(as.data.frame(sample_data[sample_data$SAMPLE_ID == input$site_sample_select,][c(3,1,2,6:8)]),
+            class = 'compact',
+            selection = 'none',
+            rownames = FALSE,
+            escape = FALSE,
+            options = list(dom = 't',ordering=F)
+  )
+})
 
-      output$site_sample_table <- renderDataTable({datatable(as.data.frame(sample_data[sample_data$SAMPLE_ID == input$site_sample_select,][c(3,1,2,6:8)]),
-                                                               class = 'compact',
-                                                               selection = 'none',
-                                                               rownames = FALSE,
-                                                               escape = FALSE,
-                                                               options = list(dom = 't',ordering=F)
-      )
-      })
-
-    
-      ## Transcript table
-      updateSelectInput(session, inputId = "site_transcript_select", choices = unlist(str_split(site_VAL$TRANSCRIPT,",")))
-      transcripts <- site_VAL[names(site_VAL) %in% c("TRANSCRIPT","EXON","DNA","AA")]
-      
-      if(length(str_split(transcripts$TRANSCRIPT,pattern = ",",simplify = T)) > 1){
-        transcripts <- as.data.frame(apply(transcripts,2,function(x) str_split(x,pattern = ",",simplify = T)))
-      }
-      
-
-      output$site_transcript_table <- renderDataTable({datatable(transcripts[transcripts$TRANSCRIPT == input$site_transcript_select,],
-                                                                   class = 'compact',
-                                                                   selection = 'none',
-                                                                   rownames = FALSE,
-                                                                   escape = FALSE,
-                                                                   options = list(dom = 't',ordering=F)
-      )
-      })
-
-      data_af <- site_VAL
-      index_AF <- names(data_af[names(data_af) %in% siterarity_cols])
-      site_AF <- t(data_af[names(data_af) %in% siterarity_cols])
-      site_AF <- data.frame(index_AF,site_AF)
-      colnames(site_AF) <- c("Dataset","AF")
-      output$site_rarity_table <- renderDataTable({datatable(site_AF,
-                                                               selection = 'none',
-                                                               rownames = FALSE,
-                                                               escape = FALSE,
-                                                               options = list(dom = 't',ordering=F)
-      )
-      })
-      
-      output$site_title <- renderText({paste(paste(gsub(pattern = "chr",x = site_VAL[2],replacement = ""),":",site_VAL[3],sep = ""),site_VAL[5], "/", site_VAL[6])})
-      output$site_hetv <- renderText({paste(site_VAL$HET_val," (",round(site_VAL$HET_rate,digits = 1),"%)",sep = "")})
-      output$site_homv <- renderText({paste(site_VAL$HOM_val," (",round(site_VAL$HOM_rate,digits = 1),"%)",sep = "")})
-      output$site_miss <- renderText({paste(site_VAL$MISS_rate,"%")})
-      
-      output$site_info <- renderDataTable({datatable(data.frame(Names=names(site_VAL[names(site_VAL) %in% sitreinfo_cols]),values=as.character(site_VAL[sitreinfo_cols])),
-                                            class = 'compact',
-                                            colnames = c("",""),
-                                            selection = 'none',
-                                            rownames = FALSE,
-                                            escape = FALSE,
-                                            options = list(dom = 't',ordering=F,
-                                                           initComplete = JS(
-                                                             "function(settings, json) {",
-                                                             "$(this.api().table().header()).css({'color': '#fff'});",
-                                                             "}")
-                                            )
-                                          ) %>% formatStyle(
-                                              'Names',
-                                              fontWeight = 'bold'
-                                            )
-                                          })
-      
-      output$site_conseq <- renderDataTable({datatable(site_VAL[siteconseq_cols],
-                                                     class = 'compact',
-                                                     selection = 'none',
-                                                     rownames = FALSE,
-                                                     escape = FALSE,
-                                                     options = list(dom = 't',ordering=F)
-                                                  ) 
-                                                })
-      
-      output$site_clinc <- renderDataTable({datatable(site_VAL[siteclinc_cols],
-                                                       class = 'compact',
-                                                       selection = 'none',
-                                                       rownames = FALSE,
-                                                       escape = FALSE,
-                                                       options = list(dom = 't',ordering=F)
-                                                  ) 
-                                                })
+output$site_transcript_table <- renderDataTable({
+  ## Transcript table
+  transcripts <- data_cord()[names(data_cord()) %in% c("TRANSCRIPT","EXON","DNA","AA")]
+  
+  if(length(str_split(transcripts$TRANSCRIPT,pattern = ",",simplify = T)) > 1){
+    transcripts <- as.data.frame(apply(transcripts,2,function(x) str_split(x,pattern = ",",simplify = T)))
   }
-})                                                 
+  datatable(transcripts[transcripts$TRANSCRIPT == input$site_transcript_select,],
+            class = 'compact',
+            selection = 'none',
+            rownames = FALSE,
+            escape = FALSE,
+            options = list(dom = 't',ordering=F)
+  )
+})
+
+output$site_rarity_table <- renderDataTable({
+  index_AF <- names(data_cord()[names(data_cord()) %in% siterarity_cols])
+  site_AF <- t(data_cord()[names(data_cord()) %in% siterarity_cols])
+  site_AF <- data.frame(index_AF,site_AF)
+  colnames(site_AF) <- c("Dataset","AF")
+  datatable(site_AF,
+            selection = 'none',
+            rownames = FALSE,
+            escape = FALSE,
+            options = list(dom = 't',ordering=F)
+  )
+})
+
+output$site_title <- renderText({paste(paste(gsub(pattern = "chr",x = data_cord()[2],replacement = ""),":",data_cord()[3],sep = ""),data_cord()[5], "/", data_cord()[6]," - ",data_cord()[4])})
+output$site_hetv <- renderText({paste(data_cord()$HET_val," (",data_cord()$HET_rate,"%)",sep = "")})
+output$site_homv <- renderText({paste(data_cord()$HOM_val," (",data_cord()$HOM_rate,"%)",sep = "")})
+output$site_miss <- renderText({paste(data_cord()$MISS_rate,"%")})
+
+output$site_info <- renderDataTable({
+  datatable(data.frame(Names=names(data_cord()[names(data_cord()) %in% sitreinfo_cols]),values=as.character(data_cord()[which(names(data_cord()) %in% sitreinfo_cols)])),
+            class = 'compact',
+            colnames = c("",""),
+            selection = 'none',
+            rownames = FALSE,
+            escape = FALSE,
+            options = list(dom = 't',ordering=F,
+                           initComplete = JS(
+                             "function(settings, json) {",
+                             "$(this.api().table().header()).css({'color': '#fff'});",
+                             "}")
+            )
+  ) %>% formatStyle(
+    'Names',
+    fontWeight = 'bold'
+  )
+})
+
+observe({
+  if(input$main_panel == "site_panel"){
+      ## pathogenicity plotting - per site
+      sitedmg_melt <- t(reshape2::melt(data_cord()[which(names(data_cord()) %in% siteconseq_cols)]))
+      siteDamageJSON <- cbind(c("Consequence","value"),sitedmg_melt)
+      rownames(siteDamageJSON) <- NULL
+      siteDamageJSON <- toJSON(siteDamageJSON, dataframe = 'values')
+      session$sendCustomMessage("sitedmgjson",siteDamageJSON)
+  }
+})
+
+observe({
+  if(input$main_panel == "site_panel"){      
+      # Quality metric plotting
+      qual_hist <- variant_data[[which(names(variant_data) == input$cohort)]][site_quals]
+      qual_hist <- qual_hist[,which(colnames(qual_hist) == input$qual_met)]
+      qual_hist <- hist(qual_hist,breaks = seq.int(from = ifelse(min(qual_hist,na.rm = T) < 0,min(qual_hist,na.rm = T),0),to = max(qual_hist,na.rm = T),length.out = 51),plot = F)
+      qual_hist <- cbind(c("Bin","Count"),rbind(paste(signif(qual_hist$breaks[-length(qual_hist$breaks)],digits = 2)),qual_hist$counts))
+      
+      qual_line <- data_cord()[,which(names(data_cord()) == input$qual_met)]
+      siteQualJSON <- toJSON(list(qual_hist,qual_line), dataframe = 'values')
+      
+      session$sendCustomMessage("sitequaljson",siteQualJSON)
+  }
+})      
+
+output$site_clinc <- renderDataTable({
+  if(is.na(data_cord()$CLINVAR)){
+    datatable(data.frame(CLINVAR=c("no data"),DISEASE=c("no data")),
+              class = 'compact',
+              selection = 'none',
+              rownames = FALSE,
+              escape = FALSE,
+              options = list(dom = 't',ordering=F)
+    )
+  } else {
+        datatable(data_cord()[which(names(data_cord()) %in% siteclinc_cols)],
+                  class = 'compact',
+                  selection = 'none',
+                  rownames = FALSE,
+                  escape = FALSE,
+                  options = list(dom = 't',ordering=F)
+        )
+  }
+})
+
+#})                                                 
 
 #### Plot rendering ####
 
@@ -1749,7 +1788,7 @@ output$single_gene_panel_desc <- renderText({as.character(gene_info$Gene.descrip
     cohort_mutations_JSON <- do.call(rbind,lapply(variant_data,function(x){
       j <- as.data.frame(table(paste(x$REF,x$ALT,sep = ">")))
       j <- j[j$Var1 %in% mut_types,]
-      j <- t(signif(j[2]/length(names(x[42:ncol(x)])),digits = 2))
+      j <- t(signif(j[2]/length(names(x[69:ncol(x)])),digits = 2))
     }))
     cohort_mutations_JSON <- as.data.frame(cohort_mutations_JSON,row.names = length(cohort_mutations_JSON))
     cohort_mutations_JSON <- rbind(as.character(mut_types),cohort_mutations_JSON)
@@ -1779,11 +1818,11 @@ output$single_gene_panel_desc <- renderText({as.character(gene_info$Gene.descrip
   
   observe({
     cohort_conseq_JSON <- do.call(rbind,lapply(variant_data, function(x){
-      int <- signif(length(x$CONSEQ[x$CONSEQ == "intronic"])/ ncol(x[42:ncol(x)]),digits = 2)
-      syn <- signif(length(x$CONSEQ[x$CONSEQ == "synonymous"])/ ncol(x[42:ncol(x)]),digits = 2)
-      nsyn <- signif(length(x$CONSEQ[x$CONSEQ == "nonsynonymous"])/ ncol(x[42:ncol(x)]),digits = 2)
-      trunc <- signif(length(x$CONSEQ[x$CONSEQ %in% c("stopgain","FS deletion","FS insertion")])/ ncol(x[42:ncol(x)]),digits = 2)
-      splc <- signif(length(x$CONSEQ[x$CONSEQ == "splicing"])/ ncol(x[42:ncol(x)]),digits = 2)
+      int <- signif(length(x$CONSEQ[x$CONSEQ == "intronic"])/ ncol(x[69:ncol(x)]),digits = 2)
+      syn <- signif(length(x$CONSEQ[x$CONSEQ == "synonymous"])/ ncol(x[69:ncol(x)]),digits = 2)
+      nsyn <- signif(length(x$CONSEQ[x$CONSEQ == "nonsynonymous"])/ ncol(x[69:ncol(x)]),digits = 2)
+      trunc <- signif(length(x$CONSEQ[x$CONSEQ %in% c("stopgain","FS deletion","FS insertion")])/ ncol(x[69:ncol(x)]),digits = 2)
+      splc <- signif(length(x$CONSEQ[x$CONSEQ == "splicing"])/ ncol(x[69:ncol(x)]),digits = 2)
       c(splc,trunc,nsyn,syn,int)
     }))
     cohort_conseq_JSON <- as.data.frame(cohort_conseq_JSON,row.names = length(cohort_conseq_JSON))

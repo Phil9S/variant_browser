@@ -9,6 +9,26 @@
   stroke: #fff;
 }
 
+.c3-ygrid-line line {
+    stroke: black;
+    stroke-width: 1.5px;
+}
+.c3-ygrid-line text {
+    fill: black;
+}
+.c3-xgrid-line line {
+    stroke: black;
+    stroke-width: 1.5px;
+}
+.c3-xgrid-line text {
+    fill: black;
+}
+
+.c3-bars {
+  stroke-width: 1px;
+  stroke-opacity: 1;
+  stroke: black;
+}
 .toolTip {
     position: absolute;
     display: none;
