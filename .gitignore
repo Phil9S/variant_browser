@@ -7,10 +7,4 @@
 *.json
 .Rproj.user/CEECB8B4/sdb/prop/INDEX
 .Rproj.user/CEECB8B4/sdb/prop/21AFE87D
-shinyApp/www/2018-04-11-db_cohort_data.RData
-shinyApp/www/2018-05-21-db_cohort_data.RData
 *.RData
-shinyApp/www/OLDsample_data.final.info
-*.info
-*.info
-*.info
