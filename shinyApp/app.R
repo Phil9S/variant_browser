@@ -44,7 +44,7 @@ library(markdown)
 
 #### External data ####
 #variant_data <- read.table(file = "test_variant_data.txt", header = TRUE, sep = "\t")
-load("www/db_cohortdata_SUBSET.RData")
+load("www/db_cohortdata.RData")
 variant_data <- cohort_list
 rm(cohort_list)
 sample_data <- read.table(file = "www/sample_data.final.info", header = TRUE, sep = "\t")
