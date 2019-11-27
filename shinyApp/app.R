@@ -1,18 +1,63 @@
-library(devtools)
-library(jsonlite)
-library(shiny)
-library(shinythemes)
-library(shinycssloaders)
-library(shinyWidgets)
-library(shinyjs)
-library(DT)
-library(shinyalert)
-library(htmltools)
-library(bsplus)
-library(reshape2)
-library(plotly)
-library(stringr)
-library(markdown)
+if(!require(devtools)){
+  install.packages("devtools")
+  library(devtools)
+}
+if(!require(jsonlite)){
+  install.packages("jsonlite")
+  library(jsonlite)
+}
+if(!require(shiny)){
+  install.packages("shiny")
+  library(shiny)
+}
+if(!require(shinythemes)){
+  install.packages("shinythemes")
+  library(shinythemes)
+}
+if(!require(shinycssloaders)){
+  install.packages("shinycssloaders")
+  library(shinycssloaders)
+}
+if(!require(shinyWidgets)){
+  install.packages("shinyWidgets")
+  library(shinyWidgets)
+}
+if(!require(shinyjs)){
+  install.packages("shinyjs")
+  library(shinyjs)
+}
+if(!require(DT)){
+  install.packages("DT")
+  library(DT)
+}
+if(!require(shinyalert)){
+  install.packages("shinyalert")
+  library(shinyalert)
+}
+if(!require(htmltools)){
+  install.packages("htmltools")
+  library(htmltools)
+}
+if(!require(bsplus)){
+  install.packages("bsplus")
+  library(bsplus)
+}
+if(!require(reshape2)){
+  install.packages("reshape2")
+  library(reshape2)
+}
+if(!require(plotly)){
+  install.packages("plotly")
+  library(plotly)
+}
+if(!require(stringr)){
+  install.packages("stringr")
+  library(stringr)
+}
+if(!require(markdown)){
+  install.packages("markdown")
+  library(markdown)
+}
 
 ## SHINY APP - VARIANT BROWSER - ALPHA 1.3
 
